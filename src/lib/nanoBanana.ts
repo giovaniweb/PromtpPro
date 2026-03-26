@@ -13,17 +13,15 @@ const ratioMap: Record<string, string> = {
   '9:16': '9:16',
 };
 
-/**
- * Tenta gerar imagem com Imagen 3.
- * Retorna base64 string da imagem ou lança erro.
- */
+/** Imagen 3 via Google AI Studio — requer acesso especial. Tenta primeiro. */
 async function tryImagen3(prompt: string, aspectRatio: string): Promise<string> {
   const imageAspectRatio = ratioMap[aspectRatio] ?? '1:1';
-  const url = `${process.env.NANO_BANANA_API_URL}/v1beta/models/imagen-3.0-generate-002:generateImages?key=${process.env.NANO_BANANA_API_KEY}`;
+  const key = process.env.NANO_BANANA_API_KEY!;
+  const url = `${process.env.NANO_BANANA_API_URL}/v1beta/models/imagen-3.0-generate-002:generateImages?key=${key}`;
 
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
     body: JSON.stringify({
       prompt: { text: prompt },
       generationConfig: { sampleCount: 1, aspectRatio: imageAspectRatio },
@@ -31,62 +29,67 @@ async function tryImagen3(prompt: string, aspectRatio: string): Promise<string> 
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`Imagen3 ${res.status}: ${err?.error?.message ?? res.statusText}`);
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`Imagen3 ${res.status}: ${text.slice(0, 200)}`);
   }
 
   const data = await res.json();
   const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
-  if (!b64) throw new Error('Imagen3: resposta sem imagem');
+  if (!b64) throw new Error(`Imagen3: sem imagem na resposta — ${JSON.stringify(data).slice(0, 200)}`);
   return b64;
 }
 
 /**
- * Fallback: gera imagem com Gemini 2.0 Flash (geração nativa de imagem).
+ * Gemini 2.0 Flash Experimental — geração de imagem nativa.
+ * Disponível para chaves AI Studio padrão.
  */
-async function tryGeminiFlash(prompt: string): Promise<string> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${process.env.GEMINI_API_KEY}`;
+async function tryGeminiFlashExp(prompt: string): Promise<string> {
+  const key = process.env.GEMINI_API_KEY!;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${key}`;
 
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
     }),
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`GeminiFlash ${res.status}: ${err?.error?.message ?? res.statusText}`);
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`GeminiFlashExp ${res.status}: ${text.slice(0, 200)}`);
   }
 
   const data = await res.json();
-  const parts: Array<{ inlineData?: { data: string } }> = data?.candidates?.[0]?.content?.parts ?? [];
+  const parts: Array<{ inlineData?: { data: string; mimeType: string }; text?: string }> =
+    data?.candidates?.[0]?.content?.parts ?? [];
+
   const imagePart = parts.find((p) => p.inlineData?.data);
-  if (!imagePart?.inlineData?.data) throw new Error('GeminiFlash: resposta sem imagem');
+  if (!imagePart?.inlineData?.data) {
+    throw new Error(`GeminiFlashExp: sem imagem na resposta — parts: ${parts.length}, ${JSON.stringify(parts).slice(0, 200)}`);
+  }
   return imagePart.inlineData.data;
 }
 
 /**
- * Gera imagem usando Nano Banana 2 (Imagen 3).
- * Se Imagen 3 não estiver disponível, usa Gemini 2.0 Flash como fallback.
+ * Gera imagem — tenta Imagen 3 primeiro, fallback para Gemini 2.0 Flash Exp.
+ * Retorna base64 string da imagem PNG/JPEG gerada.
  */
 export async function generateImage(params: GenerateParams): Promise<string> {
   const { prompt, aspectRatio } = params;
 
   try {
     return await tryImagen3(prompt, aspectRatio);
-  } catch (imagen3Error) {
-    console.warn('[nanoBanana] Imagen 3 falhou, tentando Gemini Flash:', imagen3Error);
+  } catch (err1) {
+    console.warn('[nanoBanana] Imagen3 indisponível, usando Gemini Flash Exp:', err1 instanceof Error ? err1.message : err1);
     try {
-      return await tryGeminiFlash(prompt);
-    } catch (geminiError) {
-      console.error('[nanoBanana] Gemini Flash também falhou:', geminiError);
+      return await tryGeminiFlashExp(prompt);
+    } catch (err2) {
       throw new Error(
-        `Nenhum modelo disponível.\n` +
-        `Imagen3: ${imagen3Error instanceof Error ? imagen3Error.message : String(imagen3Error)}\n` +
-        `GeminiFlash: ${geminiError instanceof Error ? geminiError.message : String(geminiError)}`
+        `Falha em ambos os modelos.\n` +
+        `Imagen3: ${err1 instanceof Error ? err1.message : String(err1)}\n` +
+        `GeminiFlashExp: ${err2 instanceof Error ? err2.message : String(err2)}`
       );
     }
   }
