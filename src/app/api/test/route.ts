@@ -43,6 +43,20 @@ async function testModel(name: string, body: object, endpoint: 'generateContent'
   }
 }
 
+async function listBananaModels(): Promise<string[]> {
+  try {
+    const url = `${BASE}/v1beta/models?key=${KEY}&pageSize=200`;
+    const res = await fetch(url);
+    const data = await res.json().catch(() => ({}));
+    const models: Array<{ name: string }> = data?.models ?? [];
+    return models
+      .map((m) => m.name.replace('models/', ''))
+      .filter((n) => n.includes('banana') || n.includes('nano'));
+  } catch {
+    return [];
+  }
+}
+
 export async function GET() {
   const promptBody = {
     contents: [{ parts: [{ text: 'Generate a small red circle image.' }] }],
@@ -53,24 +67,29 @@ export async function GET() {
     generationConfig: { sampleCount: 1 },
   };
 
-  const [vision, nanoBanana, imagen4, gemini25img] = await Promise.all([
+  const [vision, nanoBanana, nanoBanana2, imagen4, gemini25img, bananaModels] = await Promise.all([
     testVision(),
-    testModel('nano-banana-pro-preview', promptBody, 'generateContent'),
-    testModel('imagen-4.0-generate-001', imagenBody, 'generateImages'),
-    testModel('gemini-2.5-flash-image',  promptBody, 'generateContent'),
+    testModel('nano-banana-pro-preview',  promptBody, 'generateContent'),
+    testModel('nano-banana-2',            promptBody, 'generateContent'),
+    testModel('imagen-4.0-generate-001',  imagenBody, 'generateImages'),
+    testModel('gemini-2.5-flash-image',   promptBody, 'generateContent'),
+    listBananaModels(),
   ]);
 
-  const imageGenOk = [nanoBanana, imagen4, gemini25img].some(r => r.status === 'ok');
+  const imageGenOk = [nanoBanana, nanoBanana2, imagen4, gemini25img].some(r => r.status === 'ok');
 
   return NextResponse.json({
     summary: vision.status === 'ok' && imageGenOk ? '✅ APIs prontas' : '⚠️ Verifique erros',
     vision_gemini25flash: vision,
+    nanoBanana2: nanoBanana2,
     nanoBananaPro: nanoBanana,
     imagen4: imagen4,
     gemini25FlashImage: gemini25img,
-    recommendation: nanoBanana.status === 'ok' ? 'Nano Banana Pro ✅'
+    availableBananaModels: bananaModels,
+    recommendation: nanoBanana2.status === 'ok' ? 'Nano Banana 2 ✅'
+      : nanoBanana.status === 'ok'  ? 'Nano Banana Pro ✅'
       : imagen4.status === 'ok'     ? 'Imagen 4 ✅'
       : gemini25img.status === 'ok' ? 'Gemini 2.5 Flash Image ✅'
-      : '❌ Nenhum modelo disponível — verifique API keys no Vercel',
+      : '❌ Nenhum modelo de geração disponível — verifique API keys no Vercel',
   });
 }
