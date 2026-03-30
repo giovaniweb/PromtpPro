@@ -3,6 +3,8 @@ export interface GenerateParams {
   mimeType: string;
   prompt: string;
   aspectRatio: string;
+  styleImageBase64?: string;
+  styleMimeType?: string;
 }
 
 const BASE = 'https://generativelanguage.googleapis.com';
@@ -13,16 +15,38 @@ const ratioMap: Record<string, string> = {
 
 /**
  * Nano Banana 2 (gemini-3.1-flash-image-preview) — modelo mais recente.
+ * Suporta múltiplas imagens: selfie do usuário + imagem de estilo da galeria.
  */
-async function tryNanoBanana2(prompt: string): Promise<string> {
+async function tryNanoBanana2(
+  prompt: string,
+  selfieBase64?: string,
+  selfieMime?: string,
+  styleBase64?: string,
+  styleMime?: string,
+): Promise<string> {
   const key = process.env.NANO_BANANA_API_KEY!;
   const url = `${BASE}/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${key}`;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const parts: any[] = [];
+
+  if (selfieBase64 && selfieMime) {
+    parts.push({ text: '[IDENTITY REFERENCE — preserve this person\'s face exactly]' });
+    parts.push({ inlineData: { data: selfieBase64, mimeType: selfieMime } });
+  }
+
+  if (styleBase64 && styleMime) {
+    parts.push({ text: '[STYLE REFERENCE — use this for clothing, pose, colors, and environment]' });
+    parts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
+  }
+
+  parts.push({ text: prompt });
 
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts }],
       generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
     }),
   });
@@ -33,25 +57,44 @@ async function tryNanoBanana2(prompt: string): Promise<string> {
   }
 
   const data = await res.json();
-  const parts: Array<{ inlineData?: { data: string } }> =
+  const responseParts2: Array<{ inlineData?: { data: string } }> =
     data?.candidates?.[0]?.content?.parts ?? [];
-  const img = parts.find((p) => p.inlineData?.data);
-  if (!img?.inlineData?.data) throw new Error(`NanoBanana2: sem imagem — ${JSON.stringify(parts).slice(0, 150)}`);
+  const img = responseParts2.find((p) => p.inlineData?.data);
+  if (!img?.inlineData?.data) throw new Error(`NanoBanana2: sem imagem — ${JSON.stringify(responseParts2).slice(0, 150)}`);
   return img.inlineData.data;
 }
 
 /**
  * Nano Banana Pro (nano-banana-pro-preview) — segundo fallback.
+ * Também suporta múltiplas imagens.
  */
-async function tryNanoBananaPro(prompt: string): Promise<string> {
+async function tryNanoBananaPro(
+  prompt: string,
+  selfieBase64?: string,
+  selfieMime?: string,
+  styleBase64?: string,
+  styleMime?: string,
+): Promise<string> {
   const key = process.env.NANO_BANANA_API_KEY!;
   const url = `${BASE}/v1beta/models/nano-banana-pro-preview:generateContent?key=${key}`;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const proParts: any[] = [];
+  if (selfieBase64 && selfieMime) {
+    proParts.push({ text: '[IDENTITY REFERENCE — preserve this person\'s face exactly]' });
+    proParts.push({ inlineData: { data: selfieBase64, mimeType: selfieMime } });
+  }
+  if (styleBase64 && styleMime) {
+    proParts.push({ text: '[STYLE REFERENCE — use this for clothing, pose, colors, and environment]' });
+    proParts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
+  }
+  proParts.push({ text: prompt });
 
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts: proParts }],
       generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
     }),
   });
@@ -62,10 +105,10 @@ async function tryNanoBananaPro(prompt: string): Promise<string> {
   }
 
   const data = await res.json();
-  const parts: Array<{ inlineData?: { data: string } }> =
+  const responseParts: Array<{ inlineData?: { data: string } }> =
     data?.candidates?.[0]?.content?.parts ?? [];
-  const img = parts.find((p) => p.inlineData?.data);
-  if (!img?.inlineData?.data) throw new Error(`NanoBananaPro: sem imagem — ${JSON.stringify(parts).slice(0, 150)}`);
+  const img = responseParts.find((p) => p.inlineData?.data);
+  if (!img?.inlineData?.data) throw new Error(`NanoBananaPro: sem imagem — ${JSON.stringify(responseParts).slice(0, 150)}`);
   return img.inlineData.data;
 }
 
@@ -132,12 +175,12 @@ async function tryGemini25FlashImage(prompt: string): Promise<string> {
  * 3. Gemini 2.5 Flash Image
  */
 export async function generateImage(params: GenerateParams): Promise<string> {
-  const { prompt, aspectRatio } = params;
+  const { prompt, aspectRatio, imageBase64, mimeType, styleImageBase64, styleMimeType } = params;
   const errors: string[] = [];
 
   for (const [name, fn] of [
-    ['NanoBanana2',      () => tryNanoBanana2(prompt)],
-    ['NanoBananaPro',    () => tryNanoBananaPro(prompt)],
+    ['NanoBanana2',        () => tryNanoBanana2(prompt, imageBase64, mimeType, styleImageBase64, styleMimeType)],
+    ['NanoBananaPro',      () => tryNanoBananaPro(prompt, imageBase64, mimeType, styleImageBase64, styleMimeType)],
     ['Gemini25FlashImage', () => tryGemini25FlashImage(prompt)],
   ] as [string, () => Promise<string>][]) {
     try {
