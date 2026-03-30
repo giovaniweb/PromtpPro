@@ -52,6 +52,7 @@ export default function StyleModal({ style, onClose }: Props) {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('styleImageUrl', style.thumbnail); // imagem de referência de estilo
       formData.append('promptEn', style.prompt_en);
       formData.append('aspectRatio', style.aspect_ratio);
       formData.append('styleId', style.id);
@@ -144,7 +145,7 @@ export default function StyleModal({ style, onClose }: Props) {
               </button>
               <button
                 onClick={() => { setGeneratedUrl(null); setError(null); }}
-                className="px-4 py-2.5 rounded-xl bg-white/10 text-gray-300 text-sm cursor-pointer hover:bg-white/15"
+                className="px-4 py--2.5 rounded-xl bg-white/10 text-gray-300 text-sm cursor-pointer hover:bg-white/15"
               >
                 Gerar novamente
               </button>
