@@ -11,7 +11,39 @@ const ratioMap: Record<string, string> = {
   '1:1': '1:1', '4:5': '4:5', '2:3': '3:4', '4:7': '3:4', '9:16': '9:16',
 };
 
-async function tryNanoBanana(prompt: string): Promise<string> {
+/**
+ * Nano Banana 2 (gemini-3.1-flash-image-preview) — modelo mais recente.
+ */
+async function tryNanoBanana2(prompt: string): Promise<string> {
+  const key = process.env.NANO_BANANA_API_KEY!;
+  const url = `${BASE}/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${key}`;
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`NanoBanana2 ${res.status}: ${text.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const parts: Array<{ inlineData?: { data: string } }> =
+    data?.candidates?.[0]?.content?.parts ?? [];
+  const img = parts.find((p) => p.inlineData?.data);
+  if (!img?.inlineData?.data) throw new Error(`NanoBanana2: sem imagem — ${JSON.stringify(parts).slice(0, 150)}`);
+  return img.inlineData.data;
+}
+
+/**
+ * Nano Banana Pro (nano-banana-pro-preview) — segundo fallback.
+ */
+async function tryNanoBananaPro(prompt: string): Promise<string> {
   const key = process.env.NANO_BANANA_API_KEY!;
   const url = `${BASE}/v1beta/models/nano-banana-pro-preview:generateContent?key=${key}`;
 
@@ -26,17 +58,20 @@ async function tryNanoBanana(prompt: string): Promise<string> {
 
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
-    throw new Error(`NanoBanana ${res.status}: ${text.slice(0, 200)}`);
+    throw new Error(`NanoBananaPro ${res.status}: ${text.slice(0, 200)}`);
   }
 
   const data = await res.json();
   const parts: Array<{ inlineData?: { data: string } }> =
     data?.candidates?.[0]?.content?.parts ?? [];
   const img = parts.find((p) => p.inlineData?.data);
-  if (!img?.inlineData?.data) throw new Error(`NanoBanana: sem imagem — ${JSON.stringify(parts).slice(0, 150)}`);
+  if (!img?.inlineData?.data) throw new Error(`NanoBananaPro: sem imagem — ${JSON.stringify(parts).slice(0, 150)}`);
   return img.inlineData.data;
 }
 
+/**
+ * Imagen 4 — geração de alta qualidade.
+ */
 async function tryImagen4(prompt: string, aspectRatio: string): Promise<string> {
   const key = process.env.NANO_BANANA_API_KEY!;
   const url = `${BASE}/v1beta/models/imagen-4.0-generate-001:generateImages?key=${key}`;
@@ -61,6 +96,9 @@ async function tryImagen4(prompt: string, aspectRatio: string): Promise<string> 
   return b64;
 }
 
+/**
+ * Gemini 2.5 Flash Image — geração nativa de imagem (terceiro fallback).
+ */
 async function tryGemini25FlashImage(prompt: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY!;
   const url = `${BASE}/v1beta/models/gemini-2.5-flash-image:generateContent?key=${key}`;
@@ -87,13 +125,19 @@ async function tryGemini25FlashImage(prompt: string): Promise<string> {
   return img.inlineData.data;
 }
 
+/**
+ * Geração de imagem com cascata de modelos:
+ * 1. Nano Banana 2 (gemini-3.1-flash-image-preview) — mais recente
+ * 2. Nano Banana Pro (nano-banana-pro-preview)
+ * 3. Gemini 2.5 Flash Image
+ */
 export async function generateImage(params: GenerateParams): Promise<string> {
   const { prompt, aspectRatio } = params;
   const errors: string[] = [];
 
   for (const [name, fn] of [
-    ['NanoBanana', () => tryNanoBanana(prompt)],
-    ['Imagen4',    () => tryImagen4(prompt, aspectRatio)],
+    ['NanoBanana2',      () => tryNanoBanana2(prompt)],
+    ['NanoBananaPro',    () => tryNanoBananaPro(prompt)],
     ['Gemini25FlashImage', () => tryGemini25FlashImage(prompt)],
   ] as [string, () => Promise<string>][]) {
     try {

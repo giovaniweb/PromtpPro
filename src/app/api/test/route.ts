@@ -67,29 +67,29 @@ export async function GET() {
     generationConfig: { sampleCount: 1 },
   };
 
-  const [vision, nanoBanana, nanoBanana2, imagen4, gemini25img, bananaModels] = await Promise.all([
+  const [vision, nanoBanana2, nanoBananaPro, imagen4, gemini25img, bananaModels] = await Promise.all([
     testVision(),
-    testModel('nano-banana-pro-preview',  promptBody, 'generateContent'),
-    testModel('nano-banana-2',            promptBody, 'generateContent'),
-    testModel('imagen-4.0-generate-001',  imagenBody, 'generateImages'),
-    testModel('gemini-2.5-flash-image',   promptBody, 'generateContent'),
+    testModel('gemini-3.1-flash-image-preview', promptBody, 'generateContent'),
+    testModel('nano-banana-pro-preview',         promptBody, 'generateContent'),
+    testModel('imagen-4.0-generate-001',         imagenBody, 'generateImages'),
+    testModel('gemini-2.5-flash-image',          promptBody, 'generateContent'),
     listBananaModels(),
   ]);
 
-  const imageGenOk = [nanoBanana, nanoBanana2, imagen4, gemini25img].some(r => r.status === 'ok');
+  const imageGenOk = [nanoBanana2, nanoBananaPro, imagen4, gemini25img].some(r => r.status === 'ok');
 
   return NextResponse.json({
-    summary: vision.status === 'ok' && imageGenOk ? '✅ APIs prontas' : '⚠️ Verifique erros',
+    summary: vision.status === 'ok' && imageGenOk ? '\u2705 APIs prontas' : '\u26a0\ufe0f Verifique erros',
     vision_gemini25flash: vision,
-    nanoBanana2: nanoBanana2,
-    nanoBananaPro: nanoBanana,
+    nanoBanana2_gemini31: nanoBanana2,
+    nanoBananaPro: nanoBananaPro,
     imagen4: imagen4,
     gemini25FlashImage: gemini25img,
     availableBananaModels: bananaModels,
-    recommendation: nanoBanana2.status === 'ok' ? 'Nano Banana 2 ✅'
-      : nanoBanana.status === 'ok'  ? 'Nano Banana Pro ✅'
-      : imagen4.status === 'ok'     ? 'Imagen 4 ✅'
-      : gemini25img.status === 'ok' ? 'Gemini 2.5 Flash Image ✅'
-      : '❌ Nenhum modelo de geração disponível — verifique API keys no Vercel',
+    recommendation: nanoBanana2.status === 'ok' ? 'Nano Banana 2 \u2705 (gemini-3.1-flash-image-preview)'
+      : nanoBananaPro.status === 'ok' ? 'Nano Banana Pro \u2705'
+      : imagen4.status === 'ok'       ? 'Imagen 4 \u2705'
+      : gemini25img.status === 'ok'   ? 'Gemini 2.5 Flash Image \u2705'
+      : '\u274c Nenhum modelo de gera\u00e7\u00e3o dispon\u00edvel \u2014 verifique API keys no Vercel',
   });
 }
