@@ -10,8 +10,23 @@ export interface GenerateParams {
 const BASE = 'https://generativelanguage.googleapis.com';
 
 const ratioMap: Record<string, string> = {
-  '1:1': '1:1', '4:5': '4:5', '2:3': '3:4', '4:7': '3:4', '9:16': '9:16',
+  '1:1': '1:1', '4:5': '4:5', '2:3': '3:4', '4:7': '3:4', '9:16': '9:16', '16:9': '16:9',
 };
+
+/**
+ * Embute os pesos de identidade e estilo como instruções textuais no prompt.
+ * O modelo Gemini não aceita parâmetros de peso separados — instrução em texto é o mecanismo disponível.
+ */
+function buildEnrichedPrompt(fusionPrompt: string): string {
+  return fusionPrompt + `
+
+=== RENDERING PARAMETERS ===
+Identity preservation: 1.0 — ABSOLUTE: The face, skin tone, hair and facial structure from the IDENTITY REFERENCE image must appear in the output exactly as shown. Do not alter, blend, or average facial features with any other person.
+Style transfer strength: 0.65 — Use clothing colors, environment and pose from the STYLE REFERENCE image, but freely adapt body proportions, shoulder width, neck, and torso to match the target gender anatomy.
+Gender anatomy adaptation: Apply correct skeletal proportions for the stated target gender (broader shoulders, wider neck for male; narrower shoulders for female). Do NOT copy the silhouette outline of the style reference person.
+Composite rule: Place the identity face onto a newly generated body that matches the target gender physique wearing the described clothing in the described environment.
+CRITICAL FACE LOCK: The face in the output must be identical to the face in the identity_reference_image. Do NOT use, reference, blend, or interpolate the face of the person in the style reference image. If in doubt, discard the style reference face entirely.`;
+}
 
 /**
  * Nano Banana 2 (gemini-3.1-flash-image-preview) — modelo mais recente.
@@ -40,7 +55,7 @@ async function tryNanoBanana2(
     parts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
   }
 
-  parts.push({ text: prompt });
+  parts.push({ text: buildEnrichedPrompt(prompt) });
 
   const res = await fetch(url, {
     method: 'POST',
@@ -88,7 +103,7 @@ async function tryNanoBananaPro(
     proParts.push({ text: '[STYLE REFERENCE — use this for clothing, pose, colors, and environment]' });
     proParts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
   }
-  proParts.push({ text: prompt });
+  proParts.push({ text: buildEnrichedPrompt(prompt) });
 
   const res = await fetch(url, {
     method: 'POST',

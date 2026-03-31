@@ -96,10 +96,9 @@ export function adaptPayload(identity: IdentityFeatures, style: StyleFeatures): 
 
   const fusionPrompt = [
     `=== IDENTITY SOURCE (preserve face exactly — fidelity 1.0) ===`,
-    identity.description,
-    identity.facialFeatures ? `Face details: ${identity.facialFeatures}` : '',
-    identity.hairStyle      ? `Hair: ${identity.hairStyle}` : '',
-    identity.skinTone       ? `Skin: ${identity.skinTone}` : '',
+    `A high-resolution, photorealistic face identity source of the specific person provided in the identity_reference_image.`,
+    identity.hairStyle ? `Hair color/type: ${identity.hairStyle}` : '',
+    identity.skinTone  ? `Skin tone: ${identity.skinTone}` : '',
     ``,
     `=== CLOTHING (adapted for ${targetGender === 'male' ? 'Male' : 'Female'}) ===`,
     `Outfit: ${outfitFinal}`,
@@ -116,8 +115,8 @@ export function adaptPayload(identity: IdentityFeatures, style: StyleFeatures): 
     ``,
     `=== TECHNICAL ===`,
     `Photorealistic editorial photography. ${targetGender === 'male' ? 'Male' : 'Female'} subject.`,
-    `CRITICAL: Use the face from the identity reference image. Do NOT change the person's face.`,
-    `Use clothing style, colors, pose and environment from the style reference image.`,
+    `CRITICAL: Face identity is paramount. Use the provided identity_reference_image facial geometry and features ONLY. Do NOT reproduce, blend, or borrow any facial features from the style reference person.`,
+    `The style reference is exclusively for: clothing, pose, environment, lighting, and color palette.`,
     genderMismatch ? `Gender-adapt the clothing while preserving the original colors and materials.` : '',
   ].filter(Boolean).join('\n');
 
@@ -155,7 +154,7 @@ export function adaptPayload(identity: IdentityFeatures, style: StyleFeatures): 
     },
     technical_overrides: {
       force_face_consistency: true,
-      preserve_identity_weight: 0.85,
+      preserve_identity_weight: 1.0,
       style_transfer_weight: 1.0,
     },
     fusionPrompt,
