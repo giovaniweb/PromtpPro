@@ -52,7 +52,7 @@ export default function StyleModal({ style, onClose }: Props) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('styleImageUrl', style.thumbnail); // imagem de referência de estilo
+      formData.append('styleImageUrl', style.thumbnail);
       formData.append('promptEn', style.prompt_en);
       formData.append('aspectRatio', style.aspect_ratio);
       formData.append('styleId', style.id);
@@ -88,22 +88,18 @@ export default function StyleModal({ style, onClose }: Props) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl bg-[#12121a] border border-white/10 p-5">
-        {/* Fechar */}
         <button onClick={onClose} className="absolute top-3 right-4 text-gray-400 hover:text-white cursor-pointer text-2xl leading-none">
           &times;
         </button>
 
-        {/* Foto de exemplo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={style.thumbnail} alt={style.title} className="w-full rounded-xl mb-4 object-cover max-h-64" />
         <h2 className="text-xl font-bold mb-4">{style.title}</h2>
         <div className="border-t border-white/10 mb-4" />
 
-        {/* Upload */}
         <h3 className="text-sm text-gray-400 mb-2">Sua foto</h3>
         <UploadArea preview={preview} onFile={handleFile} onClear={handleClear} />
 
-        {/* Botão Gerar */}
         {!generatedUrl && (
           <button
             disabled={!file || loading}
@@ -123,14 +119,12 @@ export default function StyleModal({ style, onClose }: Props) {
           </button>
         )}
 
-        {/* Erro */}
         {error && (
           <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
             {error}
           </div>
         )}
 
-        {/* Resultado gerado */}
         {generatedUrl && (
           <div className="mt-4 fade-in">
             <p className="text-sm text-green-400 mb-2 font-medium">✓ Foto gerada com sucesso!</p>
@@ -145,7 +139,7 @@ export default function StyleModal({ style, onClose }: Props) {
               </button>
               <button
                 onClick={() => { setGeneratedUrl(null); setError(null); }}
-                className="px-4 py--2.5 rounded-xl bg-white/10 text-gray-300 text-sm cursor-pointer hover:bg-white/15"
+                className="px-4 py-2.5 rounded-xl bg-white/10 text-gray-300 text-sm cursor-pointer hover:bg-white/15"
               >
                 Gerar novamente
               </button>
@@ -153,7 +147,6 @@ export default function StyleModal({ style, onClose }: Props) {
           </div>
         )}
 
-        {/* Prompts colapsáveis */}
         <div className="mt-5">
           <button
             onClick={() => setPromptOpen(!promptOpen)}
