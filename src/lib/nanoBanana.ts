@@ -30,14 +30,16 @@ CRITICAL FACE LOCK: The face in the output must be identical to the face in the 
 
 /**
  * Nano Banana 2 (gemini-3.1-flash-image-preview) — modelo mais recente.
- * Suporta múltiplas imagens: selfie do usuário + imagem de estilo da galeria.
  */
 async function tryNanoBanana2(
   prompt: string,
   selfieBase64?: string,
   selfieMime?: string,
-  styleBase64?: string,
-  styleMime?: string,
+  // styleBase64 and styleMime are intentionally NOT sent as inlineData —
+  // sending a second face image causes the model to blend faces.
+  // Style features are already captured as text in the fusionPrompt via adaptPayload.
+  _styleBase64?: string,
+  _styleMime?: string,
 ): Promise<string> {
   const key = process.env.NANO_BANANA_API_KEY!;
   const url = `${BASE}/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${key}`;
@@ -46,13 +48,8 @@ async function tryNanoBanana2(
   const parts: any[] = [];
 
   if (selfieBase64 && selfieMime) {
-    parts.push({ text: '[IDENTITY REFERENCE — preserve this person\'s face exactly]' });
+    parts.push({ text: '[IDENTITY REFERENCE — this is the person whose face must appear in the output. Preserve their face exactly.]' });
     parts.push({ inlineData: { data: selfieBase64, mimeType: selfieMime } });
-  }
-
-  if (styleBase64 && styleMime) {
-    parts.push({ text: '[STYLE REFERENCE — use this for clothing, pose, colors, and environment]' });
-    parts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
   }
 
   parts.push({ text: buildEnrichedPrompt(prompt) });
@@ -81,14 +78,16 @@ async function tryNanoBanana2(
 
 /**
  * Nano Banana Pro (nano-banana-pro-preview) — segundo fallback.
- * Também suporta múltiplas imagens.
  */
 async function tryNanoBananaPro(
   prompt: string,
   selfieBase64?: string,
   selfieMime?: string,
-  styleBase64?: string,
-  styleMime?: string,
+  // styleBase64 and styleMime are intentionally NOT sent as inlineData —
+  // sending a second face image causes the model to blend faces.
+  // Style features are already captured as text in the fusionPrompt via adaptPayload.
+  _styleBase64?: string,
+  _styleMime?: string,
 ): Promise<string> {
   const key = process.env.NANO_BANANA_API_KEY!;
   const url = `${BASE}/v1beta/models/nano-banana-pro-preview:generateContent?key=${key}`;
@@ -96,12 +95,8 @@ async function tryNanoBananaPro(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const proParts: any[] = [];
   if (selfieBase64 && selfieMime) {
-    proParts.push({ text: '[IDENTITY REFERENCE — preserve this person\'s face exactly]' });
+    proParts.push({ text: '[IDENTITY REFERENCE — this is the person whose face must appear in the output. Preserve their face exactly.]' });
     proParts.push({ inlineData: { data: selfieBase64, mimeType: selfieMime } });
-  }
-  if (styleBase64 && styleMime) {
-    proParts.push({ text: '[STYLE REFERENCE — use this for clothing, pose, colors, and environment]' });
-    proParts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
   }
   proParts.push({ text: buildEnrichedPrompt(prompt) });
 
