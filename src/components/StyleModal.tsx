@@ -13,9 +13,11 @@ export default function StyleModal({ style, onClose }: Props) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
+  const [generatedPrompt, setGeneratedPrompt] = useState<string | null>(null);
+  const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>('9:16');
   const [error, setError] = useState<string | null>(null);
-  const [promptOpen, setPromptOpen] = useState(false);
 
   const handleEsc = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') onClose();
@@ -34,6 +36,7 @@ export default function StyleModal({ style, onClose }: Props) {
     setFile(f);
     setPreview(url);
     setGeneratedUrl(null);
+    setGeneratedPrompt(null);
     setError(null);
   }
 
@@ -41,7 +44,30 @@ export default function StyleModal({ style, onClose }: Props) {
     setFile(null);
     setPreview(null);
     setGeneratedUrl(null);
+    setGeneratedPrompt(null);
     setError(null);
+  }
+
+  async function handleAnalyze() {
+    if (!file) return;
+    setAnalyzing(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('styleImageUrl', style.thumbnail);
+
+      const res = await fetch('/api/analyze', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Erro ao gerar prompt');
+      setGeneratedPrompt(data.fusionPrompt);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao gerar prompt. Tente novamente.');
+    } finally {
+      setAnalyzing(false);
+    }
   }
 
   async function handleGenerate() {
@@ -54,14 +80,18 @@ export default function StyleModal({ style, onClose }: Props) {
       formData.append('file', file);
       formData.append('styleImageUrl', style.thumbnail);
       formData.append('promptEn', style.prompt_en);
-      formData.append('aspectRatio', style.aspect_ratio);
+      formData.append('aspectRatio', aspectRatio);
       formData.append('styleId', style.id);
+      if (generatedPrompt) {
+        formData.append('precomputedPrompt', generatedPrompt);
+      }
 
       const res = await fetch('/api/generate', { method: 'POST', body: formData });
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.error || 'Erro ao gerar imagem');
       setGeneratedUrl(data.imageDataUrl);
+      if (data.fusionPrompt && !generatedPrompt) setGeneratedPrompt(data.fusionPrompt);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro desconhecido. Tente novamente.');
     } finally {
@@ -77,10 +107,6 @@ export default function StyleModal({ style, onClose }: Props) {
     a.click();
   }
 
-  function copyText(text: string) {
-    navigator.clipboard.writeText(text);
-  }
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
@@ -88,24 +114,92 @@ export default function StyleModal({ style, onClose }: Props) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-2xl bg-[#12121a] border border-white/10 p-5">
+        {/* Fechar */}
         <button onClick={onClose} className="absolute top-3 right-4 text-gray-400 hover:text-white cursor-pointer text-2xl leading-none">
           &times;
         </button>
 
+        {/* Foto de exemplo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={style.thumbnail} alt={style.title} className="w-full rounded-xl mb-4 object-cover max-h-64" />
         <h2 className="text-xl font-bold mb-4">{style.title}</h2>
         <div className="border-t border-white/10 mb-4" />
 
+        {/* Upload */}
         <h3 className="text-sm text-gray-400 mb-2">Sua foto</h3>
         <UploadArea preview={preview} onFile={handleFile} onClear={handleClear} />
 
+        {/* Configurações */}
+        <div className="mt-4">
+          <p className="text-sm text-gray-400 mb-2">Proporção</p>
+          <div className="flex gap-2">
+            {(['9:16', '16:9'] as const).map((ratio) => (
+              <button
+                key={ratio}
+                onClick={() => setAspectRatio(ratio)}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-all cursor-pointer ${
+                  aspectRatio === ratio
+                    ? 'border-violet-500 bg-violet-500/20 text-violet-300'
+                    : 'border-white/10 bg-white/5 text-gray-400 hover:border-white/20'
+                }`}
+              >
+                {ratio === '9:16' ? '9:16 Stories' : '16:9 Widescreen'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Botão Gerar Prompt */}
+        <button
+          disabled={!file || analyzing || loading}
+          onClick={handleAnalyze}
+          className={`w-full mt-4 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2 ${
+            file && !analyzing && !loading
+              ? 'bg-white/10 text-gray-200 hover:bg-white/15 border border-white/15 cursor-pointer'
+              : 'bg-white/5 text-gray-600 cursor-not-allowed border border-white/5'
+          }`}
+        >
+          {analyzing ? (
+            <>
+              <span className="spinner" />
+              <span>Analisando...</span>
+            </>
+          ) : (
+            <>
+              <span className="text-violet-400">✦</span>
+              {generatedPrompt ? 'Regenerar Prompt' : 'Gerar Prompt'} — Grátis
+            </>
+          )}
+        </button>
+
+        {/* Prompt gerado (editável) */}
+        {generatedPrompt && (
+          <div className="mt-3 fade-in">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-gray-500">Prompt gerado</span>
+              <button
+                onClick={() => navigator.clipboard.writeText(generatedPrompt)}
+                className="text-xs text-violet-400 hover:text-violet-300 cursor-pointer"
+              >
+                Copiar
+              </button>
+            </div>
+            <textarea
+              value={generatedPrompt}
+              onChange={(e) => setGeneratedPrompt(e.target.value)}
+              rows={5}
+              className="w-full bg-black/40 rounded-lg p-3 text-xs text-gray-300 border border-white/10 focus:border-violet-500/50 focus:outline-none resize-none"
+            />
+          </div>
+        )}
+
+        {/* Botão Gerar Imagem */}
         {!generatedUrl && (
           <button
-            disabled={!file || loading}
+            disabled={!file || loading || analyzing}
             onClick={handleGenerate}
-            className={`w-full mt-4 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
-              file && !loading
+            className={`w-full mt-3 py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
+              file && !loading && !analyzing
                 ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white hover:opacity-90 cursor-pointer'
                 : 'bg-white/10 text-gray-500 cursor-not-allowed'
             }`}
@@ -115,16 +209,23 @@ export default function StyleModal({ style, onClose }: Props) {
                 <span className="spinner" />
                 <span className="text-sm text-gray-300">Gerando sua foto...</span>
               </>
-            ) : 'Gerar minha foto'}
+            ) : (
+              <>
+                Gerar Imagem
+                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full">1 crédito</span>
+              </>
+            )}
           </button>
         )}
 
+        {/* Erro */}
         {error && (
           <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
             {error}
           </div>
         )}
 
+        {/* Resultado gerado */}
         {generatedUrl && (
           <div className="mt-4 fade-in">
             <p className="text-sm text-green-400 mb-2 font-medium">✓ Foto gerada com sucesso!</p>
@@ -146,39 +247,7 @@ export default function StyleModal({ style, onClose }: Props) {
             </div>
           </div>
         )}
-
-        <div className="mt-5">
-          <button
-            onClick={() => setPromptOpen(!promptOpen)}
-            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white cursor-pointer"
-          >
-            <span className={`transition-transform inline-block ${promptOpen ? 'rotate-90' : ''}`}>&#9654;</span>
-            Copiar prompt
-          </button>
-          {promptOpen && (
-            <div className="mt-3 space-y-3">
-              <PromptBox label="Português" text={style.prompt_pt} onCopy={copyText} />
-              <PromptBox label="English" text={style.prompt_en} onCopy={copyText} />
-            </div>
-          )}
-        </div>
       </div>
-    </div>
-  );
-}
-
-function PromptBox({ label, text, onCopy }: { label: string; text: string; onCopy: (t: string) => void }) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-xs text-gray-500">{label}</span>
-        <button onClick={() => onCopy(text)} className="text-xs text-violet-400 hover:text-violet-300 cursor-pointer">
-          Copiar
-        </button>
-      </div>
-      <pre className="bg-black/40 rounded-lg p-3 text-xs text-gray-300 whitespace-pre-wrap break-words overflow-auto max-h-32">
-        {text}
-      </pre>
     </div>
   );
 }
