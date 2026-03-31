@@ -13,10 +13,6 @@ const ratioMap: Record<string, string> = {
   '1:1': '1:1', '4:5': '4:5', '2:3': '3:4', '4:7': '3:4', '9:16': '9:16', '16:9': '16:9',
 };
 
-/**
- * Embute os pesos de identidade e estilo como instruções textuais no prompt.
- * O modelo Gemini não aceita parâmetros de peso separados — instrução em texto é o mecanismo disponível.
- */
 function buildEnrichedPrompt(fusionPrompt: string): string {
   return fusionPrompt + `
 
@@ -25,19 +21,14 @@ Identity preservation: 1.0 — ABSOLUTE: The face, skin tone, hair and facial st
 Style transfer strength: 0.65 — Use clothing colors, environment and pose from the STYLE REFERENCE image, but freely adapt body proportions, shoulder width, neck, and torso to match the target gender anatomy.
 Gender anatomy adaptation: Apply correct skeletal proportions for the stated target gender (broader shoulders, wider neck for male; narrower shoulders for female). Do NOT copy the silhouette outline of the style reference person.
 Composite rule: Place the identity face onto a newly generated body that matches the target gender physique wearing the described clothing in the described environment.
-CRITICAL FACE LOCK: The face in the output must be identical to the face in the identity_reference_image. Do NOT use, reference, blend, or interpolate the face of the person in the style reference image. If in doubt, discard the style reference face entirely.`;
+CRITICAL FACE LOCK: The face in the output must be identical to the face in the identity_reference_image. Do NOT use, reference, blend, or interpolate the face of the person in the style reference image. If in doubt, discard the style reference face entirely.
+Composition rules: Generate only what is explicitly described in the SCENE section. Do NOT add hands, arms, props, or background elements not mentioned. Keep the composition clean and anatomically correct. Avoid touching hands near the face unless explicitly stated.`;
 }
 
-/**
- * Nano Banana 2 (gemini-3.1-flash-image-preview) — modelo mais recente.
- */
 async function tryNanoBanana2(
   prompt: string,
   selfieBase64?: string,
   selfieMime?: string,
-  // styleBase64 and styleMime are intentionally NOT sent as inlineData —
-  // sending a second face image causes the model to blend faces.
-  // Style features are already captured as text in the fusionPrompt via adaptPayload.
   _styleBase64?: string,
   _styleMime?: string,
 ): Promise<string> {
@@ -76,16 +67,10 @@ async function tryNanoBanana2(
   return img.inlineData.data;
 }
 
-/**
- * Nano Banana Pro (nano-banana-pro-preview) — segundo fallback.
- */
 async function tryNanoBananaPro(
   prompt: string,
   selfieBase64?: string,
   selfieMime?: string,
-  // styleBase64 and styleMime are intentionally NOT sent as inlineData —
-  // sending a second face image causes the model to blend faces.
-  // Style features are already captured as text in the fusionPrompt via adaptPayload.
   _styleBase64?: string,
   _styleMime?: string,
 ): Promise<string> {
@@ -122,9 +107,6 @@ async function tryNanoBananaPro(
   return img.inlineData.data;
 }
 
-/**
- * Imagen 4 — geração de alta qualidade.
- */
 async function tryImagen4(prompt: string, aspectRatio: string): Promise<string> {
   const key = process.env.NANO_BANANA_API_KEY!;
   const url = `${BASE}/v1beta/models/imagen-4.0-generate-001:generateImages?key=${key}`;
@@ -149,9 +131,6 @@ async function tryImagen4(prompt: string, aspectRatio: string): Promise<string> 
   return b64;
 }
 
-/**
- * Gemini 2.5 Flash Image — geração nativa de imagem (terceiro fallback).
- */
 async function tryGemini25FlashImage(prompt: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY!;
   const url = `${BASE}/v1beta/models/gemini-2.5-flash-image:generateContent?key=${key}`;
@@ -178,12 +157,6 @@ async function tryGemini25FlashImage(prompt: string): Promise<string> {
   return img.inlineData.data;
 }
 
-/**
- * Geração de imagem com cascata de modelos:
- * 1. Nano Banana 2 (gemini-3.1-flash-image-preview) — mais recente
- * 2. Nano Banana Pro (nano-banana-pro-preview)
- * 3. Gemini 2.5 Flash Image
- */
 export async function generateImage(params: GenerateParams): Promise<string> {
   const { prompt, aspectRatio, imageBase64, mimeType, styleImageBase64, styleMimeType } = params;
   const errors: string[] = [];

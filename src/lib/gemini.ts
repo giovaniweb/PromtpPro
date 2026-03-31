@@ -81,7 +81,7 @@ export async function analyzeStyleImage(imageBase64: string, mimeType: string): 
   "colors": ["primary color", "secondary color"],
   "footwear": "footwear description",
   "accessories": ["accessory1"],
-  "pose": "body pose and stance description",
+  "pose": "camera angle and subject orientation only: e.g. 'facing camera', 'slight side profile', 'looking left'. Do NOT describe specific hand or arm positions",
   "environment": "setting and background description",
   "lighting": "lighting type and quality",
   "aesthetic": "photographic style and aesthetic",
