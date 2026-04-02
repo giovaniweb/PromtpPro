@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzeStyleImage } from '@/lib/gemini';
 import { generateImage } from '@/lib/nanoBanana';
-import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
 
 function slugify(text: string): string {
@@ -53,9 +53,11 @@ export async function POST(req: NextRequest) {
 
     const { data: urlData } = supabaseAdmin.storage.from('style-thumbnails').getPublicUrl(filename);
 
-    const admin = await createAdminClient();
-    const { data: newStyle, error: insertError } = await admin.from('styles').insert({ id: styleId, name, thumbnail_url: urlData.publicUrl, prompt_en: shieldPrompt, room, is_admin_created: true, usage_count: 0 }).select().single();
-    if (insertError) return NextResponse.json({ error: 'Falha ao salvar estilo no banco.' }, { status: 500 });
+    const { data: newStyle, error: insertError } = await supabaseAdmin.from('styles').insert({ id: styleId, name, thumbnail_url: urlData.publicUrl, prompt_en: shieldPrompt, room, is_admin_created: true, usage_count: 0 }).select().single();
+    if (insertError) {
+      console.error('[admin/create-style] Insert error:', insertError);
+      return NextResponse.json({ error: `Falha ao salvar estilo: ${insertError.message}` }, { status: 500 });
+    }
 
     return NextResponse.json({ style: newStyle });
   } catch (error) {
