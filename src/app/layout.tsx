@@ -1,13 +1,24 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
+import { createClient } from "@/lib/supabase/server";
+import HeaderAuth from "@/components/HeaderAuth";
 
 export const metadata: Metadata = {
   title: "PromptPro — Estúdio Pro de Fotos com IA",
   description: "Gere fotos profissionais com inteligência artificial. Estúdio virtual com estilos editoriais, corporativos, artísticos e muito mais.",
 };
 
-function Header() {
+async function Header() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  let credits: number | null = null;
+  if (user) {
+    const { data } = await supabase.from('profiles').select('credits_balance').eq('id', user.id).single();
+    credits = data?.credits_balance ?? null;
+  }
+
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50 h-16"
@@ -44,13 +55,6 @@ function Header() {
           </div>
         </div>
 
-        {/* Ícone busca mobile */}
-        <button className="sm:hidden ml-auto p-2 text-gray-400 hover:text-white cursor-pointer" aria-label="Buscar">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </button>
-
         {/* Nav links */}
         <nav className="hidden md:flex items-center gap-1 ml-auto">
           <Link href="/restaurar" className="px-3 py-1.5 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors cursor-pointer">
@@ -64,13 +68,8 @@ function Header() {
           </Link>
         </nav>
 
-        {/* Botão Entrar */}
-        <button
-          className="ml-2 px-4 py-1.5 rounded-full text-sm font-medium text-white cursor-pointer transition-opacity hover:opacity-90"
-          style={{ background: "linear-gradient(135deg,#7c3aed,#6d28d9)" }}
-        >
-          Entrar
-        </button>
+        {/* Auth state */}
+        <HeaderAuth user={user ? { email: user.email } : null} credits={credits} />
       </div>
     </header>
   );
