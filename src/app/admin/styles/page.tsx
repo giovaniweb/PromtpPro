@@ -5,6 +5,14 @@ import UploadArea from '@/components/UploadArea';
 
 type Room = 'editorial' | 'corporativo' | 'social' | 'artistico' | 'produto';
 
+const ROOM_LABELS: Record<Room, string> = {
+  editorial:   '📸 Foto de Estúdio',
+  corporativo: '💼 Foto Profissional',
+  social:      '📱 Foto Lifestyle',
+  artistico:   '🎨 Ilustração & 3D',
+  produto:     '🛍️ Produtos',
+};
+
 interface CreatedStyle {
   id: string;
   name: string;
@@ -68,10 +76,10 @@ export default function AdminStylesPage() {
         <div>
           <label className="text-sm text-gray-400 mb-2 block">Categoria</label>
           <div className="flex flex-wrap gap-2">
-            {(['editorial', 'corporativo', 'social', 'artistico', 'produto'] as Room[]).map(r => (
+            {(Object.keys(ROOM_LABELS) as Room[]).map(r => (
               <button key={r} onClick={() => setRoom(r)}
-                className={`px-3 py-1.5 rounded-lg text-sm capitalize transition-all cursor-pointer ${room === r ? 'bg-amber-500/30 border border-amber-500/50 text-amber-300' : 'bg-white/5 border border-white/10 text-gray-400 hover:border-white/20'}`}>
-                {r}
+                className={`px-3 py-1.5 rounded-lg text-sm transition-all cursor-pointer ${room === r ? 'bg-amber-500/30 border border-amber-500/50 text-amber-300' : 'bg-white/5 border border-white/10 text-gray-400 hover:border-white/20'}`}>
+                {ROOM_LABELS[r]}
               </button>
             ))}
           </div>

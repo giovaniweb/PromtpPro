@@ -1,12 +1,12 @@
 'use client';
 
 const rooms = [
-  { key: 'todos', label: 'Todos' },
-  { key: 'editorial', label: 'Editorial' },
-  { key: 'corporativo', label: 'Corporativo' },
-  { key: 'social', label: 'Social' },
-  { key: 'artistico', label: 'Artístico' },
-  { key: 'produto', label: 'Produto' },
+  { key: 'todos', label: '✨ Todos' },
+  { key: 'editorial', label: '📸 Foto de Estúdio' },
+  { key: 'corporativo', label: '💼 Foto Profissional' },
+  { key: 'social', label: '📱 Foto Lifestyle' },
+  { key: 'artistico', label: '🎨 Ilustração & 3D' },
+  { key: 'produto', label: '🛍️ Produtos' },
 ];
 
 interface RoomFilterProps {
