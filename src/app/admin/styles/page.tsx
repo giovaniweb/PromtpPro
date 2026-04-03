@@ -34,7 +34,7 @@ export default function AdminStylesPage() {
   }
 
   async function handleCreate() {
-    if (!file || !name.trim()) return;
+    if (!file) return;
     setLoading(true); setError(null);
     const formData = new FormData();
     formData.append('file', file);
@@ -68,8 +68,8 @@ export default function AdminStylesPage() {
           <UploadArea preview={preview} onFile={handleFile} onClear={() => { setFile(null); setPreview(null); }} />
         </div>
         <div>
-          <label className="text-sm text-gray-400 mb-1 block">Nome do estilo</label>
-          <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Moda Urbana Verão"
+          <label className="text-sm text-gray-400 mb-1 block">Nome do estilo <span className="text-gray-600">(opcional — IA gera automaticamente)</span></label>
+          <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Deixe vazio para gerar automaticamente"
             className="w-full px-4 py-2.5 rounded-xl text-sm text-white outline-none focus:ring-1 focus:ring-amber-500"
             style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }} />
         </div>
@@ -85,8 +85,8 @@ export default function AdminStylesPage() {
           </div>
         </div>
         {error && <p className="text-red-400 text-sm p-3 bg-red-500/10 rounded-lg">{error}</p>}
-        <button disabled={!file || !name.trim() || loading} onClick={handleCreate}
-          className={`w-full py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${file && name.trim() && !loading ? 'bg-amber-500 text-black hover:bg-amber-400 cursor-pointer' : 'bg-white/10 text-gray-500 cursor-not-allowed'}`}>
+        <button disabled={!file || loading} onClick={handleCreate}
+          className={`w-full py-3 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${file && !loading ? 'bg-amber-500 text-black hover:bg-amber-400 cursor-pointer' : 'bg-white/10 text-gray-500 cursor-not-allowed'}`}>
           {loading ? <span className="text-sm">Analisando e gerando estilo...</span> : '⚡ Gerar Estilo Seguro'}
         </button>
       </div>

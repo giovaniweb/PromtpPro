@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeStyleImage } from '@/lib/gemini';
+import { analyzeStyleImage, generateStyleTitle } from '@/lib/gemini';
 import { generateImage } from '@/lib/nanoBanana';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseAdmin } from '@supabase/supabase-js';
@@ -22,13 +22,17 @@ export async function POST(req: NextRequest) {
     const name = (form.get('name') as string | null)?.trim();
     const room = (form.get('room') as string | null) ?? 'editorial';
 
-    if (!file || !name) return NextResponse.json({ error: 'Campos obrigatórios: file, name' }, { status: 400 });
+    if (!file) return NextResponse.json({ error: 'Campo obrigatório: file' }, { status: 400 });
 
     const arrayBuffer = await file.arrayBuffer();
     const refBase64   = Buffer.from(arrayBuffer).toString('base64');
     const refMime     = file.type || 'image/jpeg';
 
-    const styleFeatures = await analyzeStyleImage(refBase64, refMime);
+    // Se o admin não informou um nome, a IA gera automaticamente
+    const [styleFeatures, resolvedName] = await Promise.all([
+      analyzeStyleImage(refBase64, refMime),
+      name ? Promise.resolve(name) : generateStyleTitle(refBase64, refMime),
+    ]);
 
     const shieldPrompt = [
       `[Protagonista] Modelo virtual hiper-realista e fictício, feições universais e comerciais, olhar cativante, identidade visual única e não rastréavel.`,
@@ -44,7 +48,7 @@ export async function POST(req: NextRequest) {
     const generatedBase64 = await generateImage({ imageBase64: '', mimeType: 'image/jpeg', prompt: shieldPrompt, aspectRatio: '9:16' });
 
     const supabaseAdmin = createSupabaseAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-    const styleId = `admin-${slugify(name)}-${Date.now()}`;
+    const styleId = `admin-${slugify(resolvedName)}-${Date.now()}`;
     const filename = `${styleId}.png`;
     const bytes = Buffer.from(generatedBase64, 'base64');
 
@@ -53,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     const { data: urlData } = supabaseAdmin.storage.from('style-thumbnails').getPublicUrl(filename);
 
-    const { data: newStyle, error: insertError } = await supabaseAdmin.from('styles').insert({ id: styleId, name, thumbnail_url: urlData.publicUrl, prompt_en: shieldPrompt, room, is_admin_created: true, usage_count: 0 }).select().single();
+    const { data: newStyle, error: insertError } = await supabaseAdmin.from('styles').insert({ id: styleId, name: resolvedName, thumbnail_url: urlData.publicUrl, prompt_en: shieldPrompt, room, is_admin_created: true, usage_count: 0 }).select().single();
     if (insertError) {
       console.error('[admin/create-style] Insert error:', insertError);
       return NextResponse.json({ error: `Falha ao salvar estilo: ${insertError.message}` }, { status: 500 });

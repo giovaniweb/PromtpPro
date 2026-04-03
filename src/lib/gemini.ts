@@ -113,6 +113,30 @@ export async function analyzeStyleImage(imageBase64: string, mimeType: string): 
 }
 
 /**
+ * Gera um título comercial curto (máx 4 palavras, em português) para um estilo fashion/editorial.
+ * Usado pelo Copyright Shield quando o admin não informa o nome manualmente.
+ */
+export async function generateStyleTitle(imageBase64: string, mimeType: string): Promise<string> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+  const prompt = `Look at this fashion/editorial photo and generate a short commercial style name in Brazilian Portuguese.
+Maximum 4 words, no quotes, capitalize each word.
+Examples: Retrato Neon, Moda Urbana, Executivo Moderno, Editorial Clean, Fantasia Dourada.
+Reply ONLY with the title, nothing else.`;
+
+  try {
+    const result = await model.generateContent([
+      prompt,
+      { inlineData: { data: imageBase64, mimeType: mimeType as MimeType } },
+    ]);
+    const title = result.response.text().trim().replace(/['"]/g, '');
+    return title || 'Estilo Editorial';
+  } catch {
+    return 'Estilo Editorial';
+  }
+}
+
+/**
  * Descrição simples da foto (legacy — usado como fallback).
  */
 export async function analyzePhoto(imageBase64: string, mimeType: string): Promise<string> {
