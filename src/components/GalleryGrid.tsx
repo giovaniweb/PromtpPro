@@ -14,6 +14,7 @@ export default function GalleryGrid({ items, onSelect, onCopy, trendingIds }: Ga
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   function handleCopy(e: React.MouseEvent, item: StyleItem) {
+    e.preventDefault();
     e.stopPropagation();
     onCopy(item);
     setCopiedId(item.id);

@@ -125,6 +125,24 @@ export default function StyleModal({ style, onClose }: Props) {
         <h2 className="text-xl font-bold mb-4">{style.title}</h2>
         <div className="border-t border-white/10 mb-4" />
 
+        {/* Prompt do estilo */}
+        {style.prompt_en && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs text-gray-500">Prompt do estilo</span>
+              <button
+                onClick={() => navigator.clipboard.writeText(style.prompt_en)}
+                className="text-xs text-violet-400 hover:text-violet-300 cursor-pointer"
+              >
+                ⎘ Copiar
+              </button>
+            </div>
+            <div className="bg-black/40 rounded-lg p-3 border border-white/10 max-h-28 overflow-y-auto">
+              <p className="text-xs text-gray-400 whitespace-pre-wrap leading-relaxed">{style.prompt_en}</p>
+            </div>
+          </div>
+        )}
+
         {/* Upload */}
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm text-gray-400">Sua foto</h3>
