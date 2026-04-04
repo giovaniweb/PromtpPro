@@ -1,10 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import UploadArea from '@/components/UploadArea';
 import BeforeAfter from '@/components/BeforeAfter';
 
 type Resolution = '2k' | '4k';
+
+function computeAspectRatio(w: number, h: number): string {
+  if (w === 0 || h === 0) return '1:1';
+  const ratio = w / h;
+  if (ratio > 1.5) return '16:9';
+  if (ratio < 0.75) return '2:3';
+  return '1:1';
+}
 
 export default function UpscalePage() {
   const [preview, setPreview] = useState<string | null>(null);
@@ -12,25 +20,51 @@ export default function UpscalePage() {
   const [resolution, setResolution] = useState<Resolution>('2k');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const [upscaledUrl, setUpscaledUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<File | null>(null);
 
-  function handleFile(_: File, url: string) {
+  function handleFile(file: File, url: string) {
+    fileRef.current = file;
     setPreview(url);
     setDone(false);
+    setUpscaledUrl(null);
+    setError(null);
     const img = new Image();
     img.onload = () => setDims({ w: img.naturalWidth, h: img.naturalHeight });
     img.src = url;
   }
 
-  function handleUpscale() {
+  async function handleUpscale() {
+    const file = fileRef.current;
+    if (!file || !preview) return;
     setLoading(true);
-    setTimeout(() => { setLoading(false); setDone(true); }, 3000);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('aspectRatio', computeAspectRatio(dims.w, dims.h));
+      const res = await fetch('/api/upscale', { method: 'POST', body: form });
+      const data = await res.json();
+      if (data.upscaledDataUrl) {
+        setUpscaledUrl(data.upscaledDataUrl);
+        setDone(true);
+      } else {
+        setError(data.error ?? 'Erro ao processar imagem.');
+      }
+    } catch {
+      setError('Falha na conexão. Tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleDownload() {
-    if (!preview) return;
+    const src = upscaledUrl ?? preview;
+    if (!src) return;
     const a = document.createElement('a');
-    a.href = preview;
-    a.download = `foto-${resolution}.jpg`;
+    a.href = src;
+    a.download = `foto-${resolution}.png`;
     a.click();
   }
 
@@ -50,7 +84,7 @@ export default function UpscalePage() {
           <UploadArea
             preview={preview}
             onFile={handleFile}
-            onClear={() => { setPreview(null); setDone(false); }}
+            onClear={() => { setPreview(null); setDone(false); fileRef.current = null; }}
           />
 
           {dims.w > 0 && (
@@ -59,7 +93,6 @@ export default function UpscalePage() {
             </p>
           )}
 
-          {/* Seletor de resolução */}
           <div className="grid grid-cols-2 gap-3 mt-4">
             <ResCard
               active={resolution === '2k'}
@@ -79,16 +112,20 @@ export default function UpscalePage() {
           <button
             onClick={handleUpscale}
             disabled={loading}
-            className="w-full mt-6 py-3 rounded-xl font-medium bg-gradient-to-r from-violet-600 to-purple-600 text-white cursor-pointer hover:opacity-90 transition-opacity"
+            className="w-full mt-6 py-3 rounded-xl font-medium bg-gradient-to-r from-violet-600 to-purple-600 text-white cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-60"
           >
             {loading ? <span className="spinner mx-auto" /> : 'Melhorar resolução'}
           </button>
+
+          {error && (
+            <p className="mt-3 text-sm text-red-400 text-center">{error}</p>
+          )}
         </div>
       )}
 
       {done && preview && (
         <div className="fade-in">
-          <BeforeAfter beforeSrc={preview} afterSrc={preview} />
+          <BeforeAfter beforeSrc={preview} afterSrc={upscaledUrl ?? preview} />
           <p className="text-center text-sm text-gray-400 mt-3">
             Resolução melhorada para <span className="text-white font-medium">{resLabel}</span>
           </p>
@@ -97,6 +134,12 @@ export default function UpscalePage() {
             className="w-full mt-4 py-3 rounded-xl font-medium bg-gradient-to-r from-violet-600 to-purple-600 text-white cursor-pointer hover:opacity-90 transition-opacity"
           >
             Baixar em alta resolução
+          </button>
+          <button
+            onClick={() => { setDone(false); setUpscaledUrl(null); }}
+            className="w-full mt-2 py-2 rounded-xl text-sm text-gray-400 hover:text-white transition-colors cursor-pointer"
+          >
+            Tentar novamente
           </button>
         </div>
       )}
