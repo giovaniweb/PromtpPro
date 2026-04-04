@@ -24,6 +24,9 @@ export interface StyleFeatures {
   lighting: string;
   aesthetic: string;
   mood: string;
+  cameraAngle: string;
+  bodyDynamics: string;
+  scenarioStyling: string;
 }
 
 type MimeType = 'image/jpeg' | 'image/png' | 'image/webp';
@@ -73,7 +76,7 @@ export async function analyzeIdentity(imageBase64: string, mimeType: string): Pr
 export async function analyzeStyleImage(imageBase64: string, mimeType: string): Promise<StyleFeatures> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-  const prompt = `Analyze this fashion/style photo and return ONLY a valid JSON object (no markdown, no explanation):
+  const prompt = `You are a Director of Photography. Analyze this fashion/editorial photo and return ONLY a valid JSON object (no markdown, no explanation):
 {
   "referenceGender": "male" or "female" or "unknown",
   "outfitDescription": "complete outfit in one sentence",
@@ -81,11 +84,14 @@ export async function analyzeStyleImage(imageBase64: string, mimeType: string): 
   "colors": ["primary color", "secondary color"],
   "footwear": "footwear description",
   "accessories": ["accessory1"],
-  "pose": "camera angle and subject orientation only: e.g. 'facing camera', 'slight side profile', 'looking left'. Do NOT describe specific hand or arm positions",
+  "pose": "subject orientation only: e.g. 'facing camera', 'slight side profile', 'looking left'",
   "environment": "setting and background description",
   "lighting": "lighting type and quality",
   "aesthetic": "photographic style and aesthetic",
-  "mood": "overall mood and vibe"
+  "mood": "overall mood and vibe",
+  "cameraAngle": "precise technical camera angle and lens choice: e.g. 'contre-plongée with 35mm wide', 'eye-level 50mm prime', 'slight plongée 85mm portrait', 'macro close-up', 'bird's eye view'",
+  "bodyDynamics": "body posture and kinetic energy: e.g. 'dynamic contrapposto with weight shift', 'relaxed asymmetric lean', 'frontal power stance', 'athletic tension mid-movement', 'casual confident slouch'",
+  "scenarioStyling": "full set/location as a scouting note: architecture, props, textures, color palette, time of day, atmosphere — e.g. 'brutalist concrete rooftop, golden hour, industrial railings, desaturated warm tones'"
 }`;
 
   try {
@@ -108,6 +114,9 @@ export async function analyzeStyleImage(imageBase64: string, mimeType: string): 
       lighting: 'natural light',
       aesthetic: 'editorial photography',
       mood: '',
+      cameraAngle: 'eye-level, 50mm prime',
+      bodyDynamics: 'natural, relaxed confidence',
+      scenarioStyling: 'professional studio, clean backdrop, soft diffused light',
     };
   }
 }

@@ -1,14 +1,25 @@
 'use client';
 
+import { useState } from 'react';
 import { StyleItem } from '@/data';
 
 interface GalleryGridProps {
   items: StyleItem[];
   onSelect: (item: StyleItem) => void;
+  onCopy: (item: StyleItem) => void;
   trendingIds?: Set<string>;
 }
 
-export default function GalleryGrid({ items, onSelect, trendingIds }: GalleryGridProps) {
+export default function GalleryGrid({ items, onSelect, onCopy, trendingIds }: GalleryGridProps) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  function handleCopy(e: React.MouseEvent, item: StyleItem) {
+    e.stopPropagation();
+    onCopy(item);
+    setCopiedId(item.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
   return (
     <div className="masonry-grid">
       <style>{`
@@ -29,10 +40,23 @@ export default function GalleryGrid({ items, onSelect, trendingIds }: GalleryGri
                 </span>
               </div>
             )}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-all duration-300 flex items-center justify-center">
-              <span className="text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300">Usar este estilo</span>
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-all duration-300 flex flex-col justify-end p-3 gap-2">
+              <button
+                onClick={e => { e.stopPropagation(); onSelect(item); }}
+                className="w-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-violet-600 to-purple-600 hover:opacity-90"
+              >
+                ↗ Usar estilo
+              </button>
+              {item.prompt_en && (
+                <button
+                  onClick={e => handleCopy(e, item)}
+                  className="w-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 py-1.5 rounded-lg text-xs font-medium text-white bg-white/10 hover:bg-white/20 border border-white/20"
+                >
+                  {copiedId === item.id ? '✓ Copiado!' : '⎘ Copiar Prompt'}
+                </button>
+              )}
             </div>
-            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
+            <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent group-hover:opacity-0 transition-opacity duration-300">
               <p className="text-white text-sm font-medium">{item.title}</p>
             </div>
           </div>

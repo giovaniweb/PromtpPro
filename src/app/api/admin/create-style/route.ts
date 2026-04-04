@@ -35,13 +35,13 @@ export async function POST(req: NextRequest) {
     ]);
 
     const shieldPrompt = [
-      `[Protagonista] Modelo virtual hiper-realista e fictício, feições universais e comerciais, olhar cativante, identidade visual única e não rastréavel.`,
-      `[Dinâmica] Pose: ${styleFeatures.pose || 'facing camera, three-quarter view'}. Fluidez natural.`,
-      `[Cenário] ${styleFeatures.environment || 'studio'}. Paleta de cores: ${styleFeatures.colors.join(', ') || 'neutro'}. Iluminação: ${styleFeatures.lighting || 'estúdio'}. Design original.`,
-      `[Vestuário] ${styleFeatures.outfitDescription}. Cores: ${styleFeatures.colors.join(', ')}.`,
+      `[Protagonista] Modelo virtual hiper-realista e fictício, feições universais e comerciais, olhar cativante, identidade visual única e não rastreável.`,
+      `[Câmera] ${styleFeatures.cameraAngle || 'eye-level, 50mm prime'}. Composição editorial profissional.`,
+      `[Dinâmica Corporal] ${styleFeatures.bodyDynamics || 'natural, relaxed confidence'}. Linguagem corporal autêntica e fluida.`,
+      `[Cenário] ${styleFeatures.scenarioStyling || styleFeatures.environment || 'studio profissional, backdrop neutro'}. Iluminação: ${styleFeatures.lighting || 'soft studio lighting'}.`,
+      `[Vestuário] ${styleFeatures.outfitDescription}. Cores: ${styleFeatures.colors.join(', ') || 'neutro'}.`,
       `[Framing] Proporção vertical 9:16 exata, enquadramento editorial otimizado para formato stories mobile.`,
-      `[Lighting] ${styleFeatures.lighting || 'Soft studio lighting'}, iluminação de estúdio comercial de alto padrão, ray-traced shadows.`,
-      `[Optics] Lente prime 50mm, f/2.8, nitidez impecável, 8k resolution.`,
+      `[Optics] f/2.8, nitidez impecável, 8k resolution, ray-traced shadows, comercial de alto padrão.`,
       `[Mood] ${styleFeatures.mood || 'editorial, confident'}.`,
     ].join('\n');
 

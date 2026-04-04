@@ -126,7 +126,12 @@ export default function StyleModal({ style, onClose }: Props) {
         <div className="border-t border-white/10 mb-4" />
 
         {/* Upload */}
-        <h3 className="text-sm text-gray-400 mb-2">Sua foto</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm text-gray-400">Sua foto</h3>
+          <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gradient-to-r from-violet-600/20 to-amber-500/20 border border-violet-500/30 text-violet-300">
+            ✦ Premium · 1 crédito
+          </span>
+        </div>
         <UploadArea preview={preview} onFile={handleFile} onClear={handleClear} />
 
         {/* Configurações */}
