@@ -36,14 +36,18 @@ export async function POST(req: NextRequest) {
 
     const shieldPrompt = [
       `[Protagonista] Modelo virtual hiper-realista e fictício, feições universais e comerciais, olhar cativante, identidade visual única e não rastreável.`,
-      `[Câmera] ${styleFeatures.cameraAngle || 'eye-level, 50mm prime'}. Composição editorial profissional.`,
-      `[Dinâmica Corporal] ${styleFeatures.bodyDynamics || 'natural, relaxed confidence'}. Linguagem corporal autêntica e fluida.`,
-      `[Cenário] ${styleFeatures.scenarioStyling || styleFeatures.environment || 'studio profissional, backdrop neutro'}. Iluminação: ${styleFeatures.lighting || 'soft studio lighting'}.`,
+      `[Câmera] ${styleFeatures.cameraAngle || 'eye-level, 50mm prime'}. Preservar exatamente este enquadramento — distância de framing e ângulo vertical idênticos.`,
+      `[Dinâmica Corporal] ${styleFeatures.bodyDynamics || 'natural, relaxed confidence'}. Linguagem corporal autêntica e fluida. NÃO reinterpretar a pose.`,
+      `[Cenário] ${styleFeatures.scenarioStyling || styleFeatures.environment || 'studio profissional, backdrop neutro'}.`,
+      `[Iluminação — CRÍTICO] ${styleFeatures.lightingExact || styleFeatures.lighting || 'soft studio lighting'}. Preservar exatamente: temperatura de cor, direção, intensidade e padrão de sombras. NÃO substituir por iluminação de estúdio genérica. NÃO neutralizar tons quentes ou frios.`,
       `[Vestuário] ${styleFeatures.outfitDescription}. Cores: ${styleFeatures.colors.join(', ') || 'neutro'}.`,
+      styleFeatures.textureDetails
+        ? `[Texturas e Materiais] ${styleFeatures.textureDetails}. Preservar todos os detalhes de tecido, acabamentos de hardware e superfícies.`
+        : '',
       `[Framing] Proporção vertical 9:16 exata, enquadramento editorial otimizado para formato stories mobile.`,
       `[Optics] f/2.8, nitidez impecável, 8k resolution, ray-traced shadows, comercial de alto padrão.`,
       `[Mood] ${styleFeatures.mood || 'editorial, confident'}.`,
-    ].join('\n');
+    ].filter(Boolean).join('\n');
 
     const generatedBase64 = await generateImage({ imageBase64: '', mimeType: 'image/jpeg', prompt: shieldPrompt, aspectRatio: '9:16' });
 

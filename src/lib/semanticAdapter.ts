@@ -58,11 +58,16 @@ export interface FusionPayload {
       };
       pose: {
         description: string;
+        body_dynamics: string;
         body_type: string;
       };
     };
+    camera_framing: string;
     environment: string;
+    scenario_styling: string;
     lighting_mood: string;
+    lighting_exact: string;
+    texture_details: string;
     visual_signature: string;
     mood: string;
   };
@@ -100,23 +105,47 @@ export function adaptPayload(identity: IdentityFeatures, style: StyleFeatures): 
     identity.hairStyle ? `Hair color/type: ${identity.hairStyle}` : '',
     identity.skinTone  ? `Skin tone: ${identity.skinTone}` : '',
     ``,
+    `=== CAMERA & FRAMING ===`,
+    style.cameraAngle  ? `Shot type: ${style.cameraAngle}` : '',
+    `PRESERVE this exact framing. Do NOT reinterpret framing distance or vertical angle.`,
+    ``,
     `=== CLOTHING (adapted for ${targetGender === 'male' ? 'Male' : 'Female'}) ===`,
     `Outfit: ${outfitFinal}`,
     transmutedFootwear ? `Footwear: ${transmutedFootwear}` : '',
     colorsStr          ? `Color palette: ${colorsStr}` : '',
     genderMismatch     ? `Adaptation: ${adaptationLogic}` : '',
     ``,
-    `=== SCENE ===`,
-    style.pose        ? `Pose: ${style.pose}` : '',
-    style.environment ? `Environment: ${style.environment}` : '',
-    style.lighting    ? `Lighting: ${style.lighting}` : '',
-    style.aesthetic   ? `Aesthetic: ${style.aesthetic}` : '',
-    style.mood        ? `Mood: ${style.mood}` : '',
+    `=== BODY & POSE ===`,
+    style.pose         ? `Orientation: ${style.pose}` : '',
+    style.bodyDynamics ? `Body dynamics: ${style.bodyDynamics}` : '',
+    identity.bodyType  ? `Subject build: ${identity.bodyType}` : '',
+    `CLONE this exact pose and body dynamics. Do NOT change body orientation, axis tilt, or limb placement.`,
     ``,
+    `=== SCENE & ENVIRONMENT ===`,
+    style.environment     ? `Location: ${style.environment}` : '',
+    style.scenarioStyling ? `Set details: ${style.scenarioStyling}` : '',
+    style.aesthetic       ? `Aesthetic: ${style.aesthetic}` : '',
+    style.mood            ? `Mood: ${style.mood}` : '',
+    ``,
+    `=== LIGHTING — CRITICAL ===`,
+    style.lightingExact
+      ? `Lighting fingerprint: ${style.lightingExact}`
+      : style.lighting ? `Lighting: ${style.lighting}` : '',
+    `PRESERVE this lighting exactly. Replicate color temperature, direction, intensity, and shadow pattern.`,
+    `DO NOT substitute generic studio lighting. DO NOT neutralize warm/cool tones.`,
+    ``,
+    style.textureDetails ? `=== TEXTURE & MATERIALS ===` : '',
+    style.textureDetails ? `Material inventory: ${style.textureDetails}` : '',
+    style.textureDetails ? `PRESERVE all fabric weaves, hardware finishes, and surface details listed above.` : '',
+    style.textureDetails ? `` : '',
     `=== TECHNICAL ===`,
     `Photorealistic editorial photography. ${targetGender === 'male' ? 'Male' : 'Female'} subject.`,
     `CRITICAL: Face identity is paramount. Use the provided identity_reference_image facial geometry and features ONLY. Do NOT reproduce, blend, or borrow any facial features from the style reference person.`,
-    `The style reference is exclusively for: clothing, pose, environment, lighting, and color palette.`,
+    `The style reference is exclusively for: clothing, pose, body dynamics, environment, lighting, and texture detail.`,
+    `DO NOT reinterpret the pose — clone it structurally.`,
+    `DO NOT reinterpret the camera angle — match framing distance and vertical angle exactly.`,
+    `DO NOT neutralize or replace the lighting — preserve its color temperature, direction, and intensity.`,
+    `DO NOT simplify materials or textures — reproduce surface detail at the level described above.`,
     genderMismatch ? `Gender-adapt the clothing while preserving the original colors and materials.` : '',
   ].filter(Boolean).join('\n');
 
@@ -144,13 +173,18 @@ export function adaptPayload(identity: IdentityFeatures, style: StyleFeatures): 
         },
         pose: {
           description: style.pose,
+          body_dynamics: style.bodyDynamics,
           body_type: identity.bodyType,
         },
       },
-      environment: style.environment,
-      lighting_mood: style.lighting,
+      camera_framing:   style.cameraAngle,
+      environment:      style.environment,
+      scenario_styling: style.scenarioStyling,
+      lighting_mood:    style.lighting,
+      lighting_exact:   style.lightingExact,
+      texture_details:  style.textureDetails,
       visual_signature: style.aesthetic,
-      mood: style.mood,
+      mood:             style.mood,
     },
     technical_overrides: {
       force_face_consistency: true,
