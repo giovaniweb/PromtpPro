@@ -29,7 +29,11 @@ export interface StyleFeatures {
   bodyDynamics: string;
   scenarioStyling: string;
   textureDetails: string;
+  medium: string;
+  magicalElements: string;
+  poseHandsDetail: string;
 }
+
 
 type MimeType = 'image/jpeg' | 'image/png' | 'image/webp';
 
@@ -78,34 +82,55 @@ export async function analyzeIdentity(imageBase64: string, mimeType: string): Pr
 export async function analyzeStyleImage(imageBase64: string, mimeType: string): Promise<StyleFeatures> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-  const prompt = `You are an obsessively precise Director of Photography and Fashion Editor. Your mission is to extract every visual fingerprint from this photo with forensic accuracy so the exact atmosphere can be reproduced. Return ONLY a valid JSON object (no markdown, no explanation).
+  const prompt = `You are a Subject Swap Specialist and Visual DNA Extractor. Your mission: extract every visual fingerprint from this image so that a new subject can be placed into the EXACT same scene, pose, medium, and atmosphere. The subject's FACE will be replaced — everything else must be cloned with forensic precision. Return ONLY a valid JSON object (no markdown, no explanation).
 
-EXTRACTION RULES — read carefully before filling each field:
-- lighting: single label only — e.g. "golden hour" / "overcast" / "hard studio" / "neon" / "blue hour"
-- lightingExact: full cinematographic fingerprint — color temperature in Kelvin, clock-position of key light, sun/source angle in degrees above horizon, key/fill/rim roles and relative intensities, shadow hardness, any lens artifacts (flare, halation). Example: "~2700K, key at 4-o'clock 20° above horizon, hard key from camera-right, warm amber rim on left shoulder, no fill, deep camera-left shadows, mild lens flare streak top-right corner"
-- textureDetails: enumerate every distinct material and its surface texture observable — fabric weave type (e.g. 2x2 rib, jersey, canvas), hardware finish (matte/gloss/brushed/hammered), zipper style/brand if visible, leather grain pattern, knit gauge, embroidery, embossing. Example: "2x2 ribbed merino knit at cuffs; YKK brass-finish metal zipper with pull tab; hammered rectangular belt buckle in aged brass; full-grain cowhide leather with visible pore pattern; coarse canvas outer shell"
-- cameraAngle: state BOTH framing distance (ECU/CU/MCU/MS/MLS/FS/EWS) AND vertical angle (bird's eye/high/slight plongée/eye-level/slight contre-plongée/contre-plongée/worm's eye) AND lens estimate. Example: "medium-close-up, eye-level, 85mm portrait prime"
-- bodyDynamics: structural body language — weight distribution, axis tilt degrees, shoulder/hip offset, limb positioning, kinetic state. Example: "contrapposto — weight on right hip, left shoulder dropped 15°, right arm extended downward, torso rotated 20° toward camera, static"
-- pose: structural orientation ONLY, no clothing references. Example: "three-quarter turn, facing camera-left, chin slightly down"
-- scenarioStyling: location scout note — architecture materials, prop inventory, surface textures of the environment, dominant color palette, time of day, atmospheric condition. Example: "brutalist poured-concrete rooftop, rusted industrial railings, warm desaturated amber tones, golden hour atmosphere, no props"
+=== PRIORITY 1 — MEDIUM & ARTISTIC STYLE (most critical) ===
+Identify the EXACT artistic medium. This determines the entire rendering pipeline.
+- If it is a digital painting: say "intricate digital painting with visible painterly brushstrokes and rich color layering, NOT a 3D CGI render, NOT a photograph"
+- If it is an oil painting: say "oil painting on canvas, painterly impasto texture, NOT a photograph"
+- If it is a 3D CGI render: say "3D CGI render, subsurface scattering skin, ray-traced reflections, NOT a photograph"
+- If it is a photograph: say "photorealistic photograph, [lens/film characteristics]"
+- Other: anime illustration, watercolor, concept art, etc. — be equally explicit
+- ALWAYS add a "NOT [wrong medium]" clause to prevent the model from defaulting to its bias
+
+=== PRIORITY 2 — POSE PRECISION (including hands and arms) ===
+For bodyDynamics: describe weight distribution, axis tilt degrees, shoulder/hip offset, limb positioning, kinetic state. INCLUDE the state of arms — "arms raised above head" / "arms at sides" / "one arm extended upward".
+For poseHandsDetail: describe exact arm and hand positions explicitly. Example: "both arms raised overhead, right arm fully extended upward with fingers spread wide, left arm bent at elbow with forearm at 90° angle, palms open facing forward, head tilted slightly left"
+For pose: structural orientation ONLY, no clothing references. Example: "three-quarter turn, facing camera-left, chin slightly down"
+
+=== PRIORITY 3 — COSTUME & MAGICAL ELEMENTS ===
+For outfitDescription and textureDetails: include filigree patterns, glowing emblems, luminescent armor details.
+For magicalElements: describe ALL supernatural visual effects visible — glowing elements, particle effects, halos, light blooms, luminescent patterns, magical auras. Example: "glowing golden chest emblem emitting warm light; luminescent teal filigree armor patterns with inner glow; soft golden particle effects around raised hands; warm light bloom emanating from crown of head". Empty string if none present.
+
+=== PRIORITY 4 — LIGHTING & COLOR PALETTE ===
+For lighting: single label only — e.g. "golden hour" / "mystical twilight" / "hard studio" / "neon" / "blue hour"
+For lightingExact: full fingerprint — color temperature in Kelvin, clock-position of key light, sun/source angle in degrees above horizon, key/fill/rim roles and relative intensities, shadow hardness, dominant chromatic palette, any lens artifacts. Example: "~3200K warm amber dominant, mystical teal secondary, key from above-right at 45° elevation, soft volumetric fill, no hard shadows, golden bloom at top of frame"
+
+=== PRIORITY 5 — SCENE CLONE ===
+For scenarioStyling: location scout note — architecture materials, prop inventory, surface textures, dominant color palette, time of day, atmospheric condition.
+For cameraAngle: BOTH framing distance (ECU/CU/MCU/MS/MLS/FS/EWS) AND vertical angle (bird's eye/high/slight plongée/eye-level/slight contre-plongée/contre-plongée/worm's eye) AND lens estimate. Example: "medium-shot, slight contre-plongée, 50mm prime"
+For textureDetails: enumerate every distinct material — fabric weave type, hardware finish (matte/gloss/brushed/hammered), leather grain, embroidery, embossing, armor plating style. Example: "hammered gold filigree armor plates with etched floral motifs; teal silk underlayer with subtle sheen; articulated pauldrons with gemstone inlays"
 
 {
   "referenceGender": "male" or "female" or "unknown",
-  "outfitDescription": "complete outfit in one precise sentence including all visible materials",
-  "outfitItems": ["each item with its material, e.g. 'ribbed merino wool turtleneck'"],
-  "colors": ["exact color names, e.g. 'burnt sienna', 'off-white ivory'"],
+  "outfitDescription": "complete outfit in one precise sentence including all visible materials and any magical/luminescent elements",
+  "outfitItems": ["each item with its material, e.g. 'hammered gold filigree breastplate'"],
+  "colors": ["exact color names, e.g. 'deep teal', 'burnished gold', 'midnight black'"],
   "footwear": "footwear with material and sole detail",
   "accessories": ["each accessory with material and finish"],
-  "pose": "structural orientation only per rules above",
+  "pose": "structural orientation only per PRIORITY 2 above",
   "environment": "one sentence location summary",
-  "lighting": "single label per rules above",
-  "lightingExact": "full cinematographic fingerprint per rules above",
-  "aesthetic": "photographic style and editorial aesthetic",
+  "lighting": "single label per PRIORITY 4 above",
+  "lightingExact": "full cinematographic fingerprint per PRIORITY 4 above",
+  "aesthetic": "artistic style and editorial aesthetic",
   "mood": "emotional tone and vibe",
-  "cameraAngle": "framing distance + vertical angle + lens estimate per rules above",
-  "bodyDynamics": "structural body language per rules above",
-  "scenarioStyling": "location scout note per rules above",
-  "textureDetails": "material and texture inventory per rules above"
+  "cameraAngle": "framing distance + vertical angle + lens estimate per PRIORITY 5 above",
+  "bodyDynamics": "structural body language including arm state per PRIORITY 2 above",
+  "scenarioStyling": "location scout note per PRIORITY 5 above",
+  "textureDetails": "material and texture inventory per PRIORITY 5 above",
+  "medium": "artistic medium per PRIORITY 1 above — always include NOT [wrong medium] clause",
+  "magicalElements": "all supernatural visual effects per PRIORITY 3, or empty string if none",
+  "poseHandsDetail": "exact arm and hand positions per PRIORITY 2 above"
 }`;
 
   try {
@@ -133,6 +158,9 @@ EXTRACTION RULES — read carefully before filling each field:
       bodyDynamics: 'natural, relaxed confidence',
       scenarioStyling: 'professional studio, clean backdrop, soft diffused light',
       textureDetails: '',
+      medium: 'photorealistic editorial photography',
+      magicalElements: '',
+      poseHandsDetail: '',
     };
   }
 }

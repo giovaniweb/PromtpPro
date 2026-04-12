@@ -59,6 +59,7 @@ export interface FusionPayload {
       pose: {
         description: string;
         body_dynamics: string;
+        pose_hands_detail: string;
         body_type: string;
       };
     };
@@ -70,6 +71,8 @@ export interface FusionPayload {
     texture_details: string;
     visual_signature: string;
     mood: string;
+    medium: string;
+    magical_elements: string;
   };
   technical_overrides: {
     force_face_consistency: boolean;
@@ -101,9 +104,14 @@ export function adaptPayload(identity: IdentityFeatures, style: StyleFeatures): 
 
   const fusionPrompt = [
     `=== IDENTITY SOURCE (preserve face exactly — fidelity 1.0) ===`,
-    `A high-resolution, photorealistic face identity source of the specific person provided in the identity_reference_image.`,
+    `A high-resolution face identity source of the specific person provided in the identity_reference_image.`,
     identity.hairStyle ? `Hair color/type: ${identity.hairStyle}` : '',
     identity.skinTone  ? `Skin tone: ${identity.skinTone}` : '',
+    ``,
+    `=== MEDIUM & ARTISTIC STYLE — CRITICAL ===`,
+    style.medium ? `Render medium: ${style.medium}` : `Render medium: photorealistic editorial photography`,
+    `REPLICATE this exact artistic medium. Do NOT substitute with photorealistic 3D rendering.`,
+    `Do NOT output a photograph if the reference is a painting. Do NOT output a painting if the reference is a photograph.`,
     ``,
     `=== CAMERA & FRAMING ===`,
     style.cameraAngle  ? `Shot type: ${style.cameraAngle}` : '',
@@ -116,9 +124,10 @@ export function adaptPayload(identity: IdentityFeatures, style: StyleFeatures): 
     genderMismatch     ? `Adaptation: ${adaptationLogic}` : '',
     ``,
     `=== BODY & POSE ===`,
-    style.pose         ? `Orientation: ${style.pose}` : '',
-    style.bodyDynamics ? `Body dynamics: ${style.bodyDynamics}` : '',
-    identity.bodyType  ? `Subject build: ${identity.bodyType}` : '',
+    style.pose            ? `Orientation: ${style.pose}` : '',
+    style.bodyDynamics    ? `Body dynamics: ${style.bodyDynamics}` : '',
+    style.poseHandsDetail ? `Hands & arms detail: ${style.poseHandsDetail}` : '',
+    identity.bodyType     ? `Subject build: ${identity.bodyType}` : '',
     `CLONE this exact pose and body dynamics. Do NOT change body orientation, axis tilt, or limb placement.`,
     ``,
     `=== SCENE & ENVIRONMENT ===`,
@@ -138,10 +147,15 @@ export function adaptPayload(identity: IdentityFeatures, style: StyleFeatures): 
     style.textureDetails ? `Material inventory: ${style.textureDetails}` : '',
     style.textureDetails ? `PRESERVE all fabric weaves, hardware finishes, and surface details listed above.` : '',
     style.textureDetails ? `` : '',
+    style.magicalElements ? `=== MAGICAL & ATMOSPHERIC ELEMENTS ===` : '',
+    style.magicalElements ? `Visual effects: ${style.magicalElements}` : '',
+    style.magicalElements ? `PRESERVE all glowing, luminescent, and magical effects exactly as described.` : '',
+    style.magicalElements ? `` : '',
     `=== TECHNICAL ===`,
-    `Photorealistic editorial photography. ${targetGender === 'male' ? 'Male' : 'Female'} subject.`,
+    style.medium ? `Render in the EXACT medium: ${style.medium}.` : `Photorealistic editorial photography.`,
+    `${targetGender === 'male' ? 'Male' : 'Female'} subject.`,
     `CRITICAL: Face identity is paramount. Use the provided identity_reference_image facial geometry and features ONLY. Do NOT reproduce, blend, or borrow any facial features from the style reference person.`,
-    `The style reference is exclusively for: clothing, pose, body dynamics, environment, lighting, and texture detail.`,
+    `The style reference is exclusively for: clothing, pose, body dynamics, environment, lighting, texture detail, and artistic medium.`,
     `DO NOT reinterpret the pose — clone it structurally.`,
     `DO NOT reinterpret the camera angle — match framing distance and vertical angle exactly.`,
     `DO NOT neutralize or replace the lighting — preserve its color temperature, direction, and intensity.`,
@@ -174,6 +188,7 @@ export function adaptPayload(identity: IdentityFeatures, style: StyleFeatures): 
         pose: {
           description: style.pose,
           body_dynamics: style.bodyDynamics,
+          pose_hands_detail: style.poseHandsDetail,
           body_type: identity.bodyType,
         },
       },
@@ -185,6 +200,8 @@ export function adaptPayload(identity: IdentityFeatures, style: StyleFeatures): 
       texture_details:  style.textureDetails,
       visual_signature: style.aesthetic,
       mood:             style.mood,
+      medium:           style.medium,
+      magical_elements: style.magicalElements,
     },
     technical_overrides: {
       force_face_consistency: true,
