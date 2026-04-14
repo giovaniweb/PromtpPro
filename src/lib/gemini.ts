@@ -78,11 +78,16 @@ export async function analyzeIdentity(imageBase64: string, mimeType: string): Pr
 /**
  * Analisa a imagem de referência do estilo e extrai features visuais.
  * Camada 1 do Identity Fusion Pipeline.
+ * @param originalPrompt - Prompt original usado para criar a imagem (ex: Midjourney/SD). Melhora a precisão da análise.
  */
-export async function analyzeStyleImage(imageBase64: string, mimeType: string): Promise<StyleFeatures> {
+export async function analyzeStyleImage(imageBase64: string, mimeType: string, originalPrompt?: string): Promise<StyleFeatures> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-  const prompt = `You are a Subject Swap Specialist and Visual DNA Extractor. Your mission: extract every visual fingerprint from this image so that a new subject can be placed into the EXACT same scene, pose, medium, and atmosphere. The subject's FACE will be replaced — everything else must be cloned with forensic precision. Return ONLY a valid JSON object (no markdown, no explanation).
+  const additionalContext = originalPrompt
+    ? `\n\n=== ADDITIONAL CONTEXT (original creation prompt) ===\nThis image was generated using the following prompt. Use it as supplementary context to enhance your visual analysis — it may contain details about lighting setup, specific materials, mood, or artistic intent that complement your visual inspection:\n"${originalPrompt}"\nCross-reference this prompt with the image to resolve ambiguities and improve accuracy of your extraction.`
+    : '';
+
+  const prompt = `You are a Subject Swap Specialist and Visual DNA Extractor. Your mission: extract every visual fingerprint from this image so that a new subject can be placed into the EXACT same scene, pose, medium, and atmosphere. The subject's FACE will be replaced — everything else must be cloned with forensic precision. Return ONLY a valid JSON object (no markdown, no explanation).${additionalContext}
 
 === PRIORITY 1 — MEDIUM & ARTISTIC STYLE (most critical) ===
 Identify the EXACT artistic medium. This determines the entire rendering pipeline.
@@ -186,6 +191,75 @@ Reply ONLY with the title, nothing else.`;
     return title || 'Estilo Editorial';
   } catch {
     return 'Estilo Editorial';
+  }
+}
+
+export interface FidelityScore {
+  overall: number;         // 0–100
+  pose: number;
+  lighting: number;
+  environment: number;
+  costume: number;
+  medium: number;
+  feedback: string;        // Em português — resumo do que divergiu
+  regenerate: boolean;     // true se overall < 70
+}
+
+/**
+ * Compara duas imagens (referência vs. gerada) e retorna um score de fidelidade visual.
+ * Usado pelo Copyright Shield após gerar o preview para ajudar o admin a decidir se aprova.
+ */
+export async function scoreFidelity(
+  referenceBase64: string,
+  referenceMime: string,
+  generatedBase64: string,
+  generatedMime: string,
+): Promise<FidelityScore> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+
+  const prompt = `You are a Visual Fidelity Judge. Compare image A (reference/original) with image B (AI-generated recreation) and score how faithfully image B reproduces the STYLE of image A (NOT the person — the subject is intentionally replaced).
+
+Score each dimension from 0 to 100:
+- pose: similarity of body posture, arms, head tilt
+- lighting: color temperature, direction, shadow pattern, intensity
+- environment: background, location, props, atmosphere
+- costume: outfit type, colors, materials, accessories
+- medium: artistic medium match (photography vs painting vs 3D, etc.)
+- overall: weighted average (medium 30%, lighting 25%, costume 20%, pose 15%, environment 10%)
+
+Return ONLY valid JSON (no markdown):
+{
+  "overall": number,
+  "pose": number,
+  "lighting": number,
+  "environment": number,
+  "costume": number,
+  "medium": number,
+  "feedback": "concise Portuguese sentence about the main divergences (max 2 sentences)",
+  "regenerate": boolean (true if overall < 70)
+}`;
+
+  try {
+    const result = await model.generateContent([
+      { text: '[IMAGE A — Reference/Original]:' },
+      { inlineData: { data: referenceBase64, mimeType: referenceMime as MimeType } },
+      { text: '[IMAGE B — AI-Generated Recreation]:' },
+      { inlineData: { data: generatedBase64, mimeType: generatedMime as MimeType } },
+      { text: prompt },
+    ]);
+    const text = result.response.text().trim().replace(/```json|```/g, '').trim();
+    return JSON.parse(text);
+  } catch {
+    return {
+      overall: 0,
+      pose: 0,
+      lighting: 0,
+      environment: 0,
+      costume: 0,
+      medium: 0,
+      feedback: 'Não foi possível avaliar a fidelidade automaticamente.',
+      regenerate: false,
+    };
   }
 }
 

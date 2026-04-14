@@ -10,7 +10,12 @@ interface Generation {
   created_at: string;
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ compra?: string }>;
+}) {
+  const { compra } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -23,6 +28,12 @@ export default async function DashboardPage() {
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-8">
+      {compra === 'sucesso' && (
+        <div className="mb-6 p-4 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 text-sm font-medium">
+          ✓ Pagamento confirmado! Seus créditos foram adicionados à conta.
+        </div>
+      )}
+
       <div className="flex items-start justify-between mb-8 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">Meu Dashboard</h1>
@@ -42,22 +53,26 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mb-10 p-5 rounded-2xl border border-white/10 bg-white/[0.03]">
-        <h2 className="text-sm font-medium text-gray-300 mb-3">Comprar mais créditos</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-medium text-gray-300">Comprar mais créditos</h2>
+          <Link href="/comprar" className="text-xs text-violet-400 hover:text-violet-300 transition-colors">
+            Ver todos os planos →
+          </Link>
+        </div>
         <div className="flex gap-3 flex-wrap">
           {[
             { name: 'Básico', credits: 50, price: 'R$ 19,90' },
             { name: 'Pro', credits: 200, price: 'R$ 59,90' },
             { name: 'Business', credits: 500, price: 'R$ 119,90' },
           ].map((plan) => (
-            <div key={plan.name} className="flex-1 min-w-[120px] p-4 rounded-xl border border-white/10 bg-white/5 hover:border-violet-500/40 transition-colors cursor-pointer">
+            <Link key={plan.name} href="/comprar" className="flex-1 min-w-[120px] p-4 rounded-xl border border-white/10 bg-white/5 hover:border-violet-500/40 transition-colors">
               <p className="font-medium text-sm">{plan.name}</p>
               <p className="text-violet-300 text-lg font-bold">{plan.credits}</p>
               <p className="text-xs text-gray-500">créditos</p>
               <p className="text-xs text-gray-400 mt-2">{plan.price}</p>
-            </div>
+            </Link>
           ))}
         </div>
-        <p className="text-xs text-gray-600 mt-3">Pagamentos em breve via Stripe.</p>
       </div>
 
       <div>
