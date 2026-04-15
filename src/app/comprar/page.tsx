@@ -17,7 +17,7 @@ const PLANS: Plan[] = [
     key: 'basico',
     name: 'Básico',
     credits: 50,
-    price: 'R$ 19,90',
+    price: 'R$ 29,90',
     description: 'Para começar e experimentar o studio virtual.',
   },
   {
@@ -32,7 +32,7 @@ const PLANS: Plan[] = [
     key: 'business',
     name: 'Business',
     credits: 500,
-    price: 'R$ 119,90',
+    price: 'R$ 199,00',
     description: 'Para agências e volume alto de produções.',
   },
 ];

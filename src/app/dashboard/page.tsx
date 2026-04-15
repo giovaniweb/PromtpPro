@@ -61,9 +61,9 @@ export default async function DashboardPage({
         </div>
         <div className="flex gap-3 flex-wrap">
           {[
-            { name: 'Básico', credits: 50, price: 'R$ 19,90' },
+            { name: 'Básico', credits: 50, price: 'R$ 29,90' },
             { name: 'Pro', credits: 200, price: 'R$ 59,90' },
-            { name: 'Business', credits: 500, price: 'R$ 119,90' },
+            { name: 'Business', credits: 500, price: 'R$ 199,00' },
           ].map((plan) => (
             <Link key={plan.name} href="/comprar" className="flex-1 min-w-[120px] p-4 rounded-xl border border-white/10 bg-white/5 hover:border-violet-500/40 transition-colors">
               <p className="font-medium text-sm">{plan.name}</p>
