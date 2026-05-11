@@ -263,6 +263,22 @@ Return ONLY valid JSON (no markdown):
   }
 }
 
+export async function extractPromptFromImage(imageBase64: string, mimeType: string): Promise<string> {
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  const prompt = `Look at this image carefully. If there is any AI generation prompt text visible in the image (usually at the bottom or overlaid as text), extract it completely and return ONLY that prompt text. Remove any Midjourney flags like --ar, --v7, --chaos, --stylize, --style raw. Remove any watermarks, website names, or creator handles. If no prompt text is visible in the image, return exactly: NONE`;
+  try {
+    const result = await model.generateContent([
+      prompt,
+      { inlineData: { data: imageBase64, mimeType: mimeType as MimeType } },
+    ]);
+    const text = result.response.text().trim();
+    if (!text || text === 'NONE' || text.length < 10) return '';
+    return text;
+  } catch {
+    return '';
+  }
+}
+
 /**
  * Descrição simples da foto (legacy — usado como fallback).
  */

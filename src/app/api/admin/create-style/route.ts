@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { analyzeStyleImage, generateStyleTitle } from '@/lib/gemini';
+import { analyzeStyleImage, generateStyleTitle, extractPromptFromImage } from '@/lib/gemini';
 import { buildShieldPrompt } from '@/lib/shieldPrompt';
 import { generateImage } from '@/lib/nanoBanana';
 import { createClient } from '@/lib/supabase/server';
@@ -30,8 +30,14 @@ export async function POST(req: NextRequest) {
     const refBase64   = Buffer.from(arrayBuffer).toString('base64');
     const refMime     = file.type || 'image/jpeg';
 
+    let resolvedOriginalPrompt = originalPrompt;
+    if (!resolvedOriginalPrompt) {
+      const detected = await extractPromptFromImage(refBase64, refMime);
+      if (detected) resolvedOriginalPrompt = detected;
+    }
+
     const [styleFeatures, resolvedName] = await Promise.all([
-      analyzeStyleImage(refBase64, refMime, originalPrompt),
+      analyzeStyleImage(refBase64, refMime, resolvedOriginalPrompt),
       name ? Promise.resolve(name) : generateStyleTitle(refBase64, refMime),
     ]);
 

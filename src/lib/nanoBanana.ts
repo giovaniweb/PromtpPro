@@ -23,8 +23,8 @@ Gender anatomy adaptation: Apply correct skeletal proportions for the stated tar
 Composite rule: Place the identity face onto a newly generated body that matches the target gender physique wearing the described clothing in the described environment.
 CRITICAL FACE LOCK: The face in the output must be identical to the face in the identity_reference_image. Do NOT use, reference, blend, or interpolate the face of the person in the style reference image. If in doubt, discard the style reference face entirely.
 Composition rules: Generate only what is explicitly described in the SCENE section. Do NOT add hands, arms, props, or background elements not mentioned. Keep the composition clean and anatomically correct. Avoid touching hands near the face unless explicitly stated.
-REALISM REQUIREMENTS: Photorealistic photograph — NOT CGI, NOT a 3D render, NOT an illustration. Visible skin pores and natural skin texture with subtle imperfections. Realistic individual hair strands. Shallow depth of field, f/2 aperture, 85mm portrait prime. High dynamic range. No skin smoothing. No beauty filter. No over-retouching.
-NEGATIVE PROMPTS (never generate): plastic skin, CGI render appearance, over-smooth skin, beauty filter, over-retouched, glass eyes, distorted face, low detail, blurry, artificial lighting bloom, uncanny valley, 3D render artifacts, fake skin texture.`;
+PHOTOGRAPHY SPECS: Shot on Sony A7R IV with 85mm f/1.4 G Master lens. Natural skin texture with visible pores and subtle imperfections. Cinematic color grading. Detailed fabric folds and material texture. High dynamic range. Shallow depth of field bokeh. Ultra-realistic, no beauty filter, no retouching.
+AVOID: plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes, beauty filter, artificial bloom, distorted proportions, uncanny valley.`;
 }
 
 async function tryNanoBanana2(
