@@ -22,15 +22,17 @@ Style transfer strength: 0.65 — Use clothing colors, environment and pose from
 Gender anatomy adaptation: Apply correct skeletal proportions for the stated target gender (broader shoulders, wider neck for male; narrower shoulders for female). Do NOT copy the silhouette outline of the style reference person.
 Composite rule: Place the identity face onto a newly generated body that matches the target gender physique wearing the described clothing in the described environment.
 CRITICAL FACE LOCK: The face in the output must be identical to the face in the identity_reference_image. Do NOT use, reference, blend, or interpolate the face of the person in the style reference image. If in doubt, discard the style reference face entirely.
-Composition rules: Generate only what is explicitly described in the SCENE section. Do NOT add hands, arms, props, or background elements not mentioned. Keep the composition clean and anatomically correct. Avoid touching hands near the face unless explicitly stated.`;
+Composition rules: Generate only what is explicitly described in the SCENE section. Do NOT add hands, arms, props, or background elements not mentioned. Keep the composition clean and anatomically correct. Avoid touching hands near the face unless explicitly stated.
+REALISM REQUIREMENTS: Photorealistic photograph — NOT CGI, NOT a 3D render, NOT an illustration. Visible skin pores and natural skin texture with subtle imperfections. Realistic individual hair strands. Shallow depth of field, f/2 aperture, 85mm portrait prime. High dynamic range. No skin smoothing. No beauty filter. No over-retouching.
+NEGATIVE PROMPTS (never generate): plastic skin, CGI render appearance, over-smooth skin, beauty filter, over-retouched, glass eyes, distorted face, low detail, blurry, artificial lighting bloom, uncanny valley, 3D render artifacts, fake skin texture.`;
 }
 
 async function tryNanoBanana2(
   prompt: string,
   selfieBase64?: string,
   selfieMime?: string,
-  _styleBase64?: string,
-  _styleMime?: string,
+  styleBase64?: string,
+  styleMime?: string,
 ): Promise<string> {
   const key = process.env.NANO_BANANA_API_KEY!;
   const url = `${BASE}/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${key}`;
@@ -38,9 +40,21 @@ async function tryNanoBanana2(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const parts: any[] = [];
 
+  const isShieldMode = !selfieBase64 && !!styleBase64;
+
+  if (isShieldMode && styleBase64 && styleMime) {
+    parts.push({ text: '[CENA ORIGINAL — clone esta imagem com precisão forense. Substitua SOMENTE o rosto e a identidade da pessoa por um modelo virtual fictício, genérico e não rastreável. NÃO altere absolutamente nada mais: roupa, cores, materiais, textura do tecido, logos, pose, mãos, fundo, iluminação, temperatura de cor, enquadramento, ângulo de câmera.]' });
+    parts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
+  }
+
   if (selfieBase64 && selfieMime) {
     parts.push({ text: '[IDENTITY REFERENCE — this is the person whose face must appear in the output. Preserve their face exactly.]' });
     parts.push({ inlineData: { data: selfieBase64, mimeType: selfieMime } });
+  }
+
+  if (selfieBase64 && styleBase64 && styleMime) {
+    parts.push({ text: '[STYLE REFERENCE — copy the clothing, pose, environment, and lighting from this image. Do NOT copy the face.]' });
+    parts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
   }
 
   parts.push({ text: buildEnrichedPrompt(prompt) });
@@ -71,18 +85,32 @@ async function tryNanoBananaPro(
   prompt: string,
   selfieBase64?: string,
   selfieMime?: string,
-  _styleBase64?: string,
-  _styleMime?: string,
+  styleBase64?: string,
+  styleMime?: string,
 ): Promise<string> {
   const key = process.env.NANO_BANANA_API_KEY!;
   const url = `${BASE}/v1beta/models/nano-banana-pro-preview:generateContent?key=${key}`;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const proParts: any[] = [];
+
+  const isShieldMode = !selfieBase64 && !!styleBase64;
+
+  if (isShieldMode && styleBase64 && styleMime) {
+    proParts.push({ text: '[CENA ORIGINAL — clone esta imagem com precisão forense. Substitua SOMENTE o rosto e a identidade da pessoa por um modelo virtual fictício, genérico e não rastreável. NÃO altere absolutamente nada mais: roupa, cores, materiais, textura do tecido, logos, pose, mãos, fundo, iluminação, temperatura de cor, enquadramento, ângulo de câmera.]' });
+    proParts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
+  }
+
   if (selfieBase64 && selfieMime) {
     proParts.push({ text: '[IDENTITY REFERENCE — this is the person whose face must appear in the output. Preserve their face exactly.]' });
     proParts.push({ inlineData: { data: selfieBase64, mimeType: selfieMime } });
   }
+
+  if (selfieBase64 && styleBase64 && styleMime) {
+    proParts.push({ text: '[STYLE REFERENCE — copy the clothing, pose, environment, and lighting from this image. Do NOT copy the face.]' });
+    proParts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
+  }
+
   proParts.push({ text: buildEnrichedPrompt(prompt) });
 
   const res = await fetch(url, {
