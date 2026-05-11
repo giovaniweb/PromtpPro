@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       name ? Promise.resolve(name) : generateStyleTitle(refBase64, refMime),
     ]);
 
-    const shieldPrompt = buildShieldPrompt(styleFeatures);
+    const shieldPrompt = buildShieldPrompt(styleFeatures, resolvedOriginalPrompt);
 
     const generatedBase64 = await generateImage({ imageBase64: '', mimeType: 'image/jpeg', prompt: shieldPrompt, aspectRatio: '9:16', styleImageBase64: refBase64, styleMimeType: refMime });
 

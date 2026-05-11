@@ -13,6 +13,17 @@ const ratioMap: Record<string, string> = {
   '1:1': '1:1', '4:5': '4:5', '2:3': '3:4', '4:7': '3:4', '9:16': '9:16', '16:9': '16:9',
 };
 
+function buildShieldEnrichedPrompt(shieldPrompt: string): string {
+  return shieldPrompt + `
+
+=== REPRODUCTION SPECS ===
+Clone the reference scene with cinematic forensic accuracy. Replace ONLY the person/model — preserve ALL clothing, colors, materials, fabric textures, logos, pose, hands, props, background, lighting, color temperature, framing, and camera angle EXACTLY as in the reference image.
+FICTIONAL MODEL: Generate a new virtual commercial model, universally attractive, non-identifiable.
+CINEMATIC QUALITY: Cine lens f/1.8, chromatic aberration. Skin pores and micro-hair visible. Fabric texture and material wear. Realistic highlights and shadows.
+PHOTOGRAPHY SPECS: Shot on cine camera. Natural skin texture with visible pores and micro-hair. Cinematic color grading. Detailed fabric folds. Realistic material highlights. Ultra-realistic, no beauty filter, no retouching.
+AVOID: plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes, beauty filter, artificial bloom, distorted proportions, uncanny valley.`;
+}
+
 function buildEnrichedPrompt(fusionPrompt: string): string {
   return fusionPrompt + `
 
@@ -57,7 +68,7 @@ async function tryNanoBanana2(
     parts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
   }
 
-  parts.push({ text: buildEnrichedPrompt(prompt) });
+  parts.push({ text: isShieldMode ? buildShieldEnrichedPrompt(prompt) : buildEnrichedPrompt(prompt) });
 
   const res = await fetch(url, {
     method: 'POST',
@@ -111,7 +122,7 @@ async function tryNanoBananaPro(
     proParts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
   }
 
-  proParts.push({ text: buildEnrichedPrompt(prompt) });
+  proParts.push({ text: isShieldMode ? buildShieldEnrichedPrompt(prompt) : buildEnrichedPrompt(prompt) });
 
   const res = await fetch(url, {
     method: 'POST',

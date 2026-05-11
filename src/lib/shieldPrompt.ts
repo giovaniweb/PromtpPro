@@ -1,10 +1,31 @@
 import type { StyleFeatures } from './gemini';
 
-/**
- * Constrói o "shield prompt" a partir das features extraídas do estilo de referência.
- * Usado pelo Copyright Shield para recriar a imagem sem o sujeito original.
- */
-export function buildShieldPrompt(styleFeatures: StyleFeatures): string {
+function cleanMJFlags(prompt: string): string {
+  return prompt
+    .replace(/--ar\s+\S+/g, '')
+    .replace(/--v\s*\d+/g, '')
+    .replace(/--chaos\s+\d+/g, '')
+    .replace(/--stylize\s+\d+/g, '')
+    .replace(/--style\s+\S+/g, '')
+    .replace(/--q\s+[\d.]+/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function stripPersonDescriptors(prompt: string): string {
+  return prompt
+    .replace(/\b\d+\s+years?\s+old\b/gi, '')
+    .replace(/\b(male|female|man|woman|boy|girl|person|writer|photographer|model|athlete|CEO|executive|journalist|director|actor|actress)\b/gi, '[FICTIONAL MODEL]')
+    .replace(/\b(European|Asian|African|Latino|Hispanic|American|Brazilian|Italian|French|German|British|Spanish|Russian|Japanese)\b/gi, '')
+    .replace(/\bwith\s+(gray|grey|blonde|brunette|dark|light|curly|straight|short|long)\s+hair\b/gi, '')
+    .replace(/\bwith\s+(short|long|full|thick|trimmed|neat)\s+beard\b/gi, '')
+    .replace(/\b(thoughtful|pensive|contemplative|melancholic|cheerful|stern|stoic)\b/gi, '')
+    .replace(/(\[FICTIONAL MODEL\]\s*){2,}/g, '[FICTIONAL MODEL] ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+export function buildShieldPrompt(styleFeatures: StyleFeatures, originalPrompt?: string): string {
   const isPainting = styleFeatures.medium && (
     styleFeatures.medium.includes('paint') ||
     styleFeatures.medium.includes('illustr') ||
@@ -13,6 +34,22 @@ export function buildShieldPrompt(styleFeatures: StyleFeatures): string {
     styleFeatures.medium.includes('anime') ||
     styleFeatures.medium.includes('watercolor')
   );
+
+  const qualityBlock = isPainting
+    ? `[Qualidade] Resolução de galeria. Pinceladas e texturas de pintura preservadas. 8K. Riqueza cromática fiel ao original. Negativo: CGI, render 3D, pele plástica, super-retocado, borrado.`
+    : `[Qualidade] Fotorrealismo cinemático — lente cine f/1.8, aberração cromática, poros na pele visíveis, micro-pelos, textura de tecido e desgaste realista de materiais, HDR, sem filtro de beleza. Negativo: pele plástica, CGI, pele super-lisa, filtro de beleza, olhos de vidro, render 3D genérico.`;
+
+  if (originalPrompt) {
+    const cleanedScene = stripPersonDescriptors(cleanMJFlags(originalPrompt));
+    return [
+      `[MISSÃO — CLONE CINEMÁTICO] A imagem de referência está visível acima. Clone-a com precisão cinemática. Substitua SOMENTE a pessoa por um modelo virtual fictício, comercialmente atraente e não rastreável. NADA mais muda: roupa, cores, materiais, texturas, logos, pose, mãos, objetos, fundo, iluminação, temperatura de cor, enquadramento, ângulo de câmera.`,
+      `[Protagonista] Modelo virtual fictício, feições universais e comercialmente atraentes, não rastreável.`,
+      `[Cena — baseada no prompt original da criação]\n${cleanedScene}`,
+      `[Iluminação — CRÍTICO] ${styleFeatures.lightingExact || styleFeatures.lighting || 'iluminação de estúdio cinemática'}. Preservar temperatura de cor, direção, intensidade e padrão de sombras exatamente como na referência.`,
+      qualityBlock,
+      `[Mood] ${styleFeatures.mood || 'editorial, confiante'}.`,
+    ].filter(Boolean).join('\n');
+  }
 
   return [
     `[MISSÃO — CLONE COM TROCA DE ROSTO] A imagem de referência está visível acima. Clone-a com precisão forense: mesma pose, mesmo enquadramento, mesmo ângulo de câmera, mesmo fundo, mesma iluminação (temperatura de cor, direção e intensidade idênticas), mesmo vestuário com todas as cores e texturas exatas. Substitua SOMENTE o rosto e identidade da pessoa por um modelo virtual fictício, comercialmente atraente e não rastreável. NADA mais muda.`,
@@ -30,9 +67,7 @@ export function buildShieldPrompt(styleFeatures: StyleFeatures): string {
       ? `[Elementos Mágicos/Atmosféricos] ${styleFeatures.magicalElements}. PRESERVAR todos os efeitos de brilho, luminescência e magia exatamente como descrito.`
       : '',
     `[Framing] Proporção vertical 9:16 exata, enquadramento editorial otimizado para formato stories mobile.`,
-    isPainting
-      ? `[Qualidade] Resolução de galeria. Pinceladas e texturas de pintura preservadas. 8K. Riqueza cromática fiel ao original. Negativo: CGI, render 3D, pele plástica, super-retocado, borrado.`
-      : `[Qualidade] Fotorrealismo puro — fotografia de câmera real, NÃO render CGI. f/2, 85mm portrait prime, profundidade de campo rasa, detalhe de pele macro (poros visíveis, textura natural com imperfeições sutis), fios de cabelo realistas individuais, HDR, sem suavização de pele, sem filtro de beleza. 8K. Negativo: pele plástica, CGI, pele super-lisa, filtro de beleza, super-retocado, olhos de vidro, rosto distorcido, baixo detalhe, borrado, render 3D genérico.`,
+    qualityBlock,
     `[Mood] ${styleFeatures.mood || 'editorial, confident'}.`,
   ].filter(Boolean).join('\n');
 }

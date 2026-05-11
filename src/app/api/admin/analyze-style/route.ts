@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       name ? Promise.resolve(name) : generateStyleTitle(refBase64, refMime),
     ]);
 
-    const shieldPrompt = buildShieldPrompt(styleFeatures);
+    const shieldPrompt = buildShieldPrompt(styleFeatures, resolvedOriginalPrompt);
 
     console.log('[admin/analyze-style] Análise concluída para:', resolvedName);
     return NextResponse.json({ shieldPrompt, resolvedName, detectedPrompt: resolvedOriginalPrompt ?? null });
