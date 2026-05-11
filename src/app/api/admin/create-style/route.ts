@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
     const shieldPrompt = buildShieldPrompt(styleFeatures);
 
-    const generatedBase64 = await generateImage({ imageBase64: '', mimeType: 'image/jpeg', prompt: shieldPrompt, aspectRatio: '9:16' });
+    const generatedBase64 = await generateImage({ imageBase64: '', mimeType: 'image/jpeg', prompt: shieldPrompt, aspectRatio: '9:16', styleImageBase64: refBase64, styleMimeType: refMime });
 
     const supabaseAdmin = createSupabaseAdmin(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
     const styleId = `admin-${slugify(resolvedName)}-${Date.now()}`;
