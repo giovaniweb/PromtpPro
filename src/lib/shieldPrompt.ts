@@ -38,13 +38,16 @@ export function buildShieldPrompt(styleFeatures: StyleFeatures, originalPrompt?:
 
   const qualitySpec = isPhoto
     ? {
-        format: 'cinematic photograph',
-        camera: 'cine lens f/1.8, shallow depth of field, chromatic aberration',
-        skin: 'visible pores, micro-hair, natural imperfections — zero beauty filter',
-        fabric: 'detailed weave texture, realistic folds and material wear',
-        color: 'cinematic color grading matching reference exactly',
-        resolution: '8K ultra-detail',
-        negative: ['plastic skin', 'CGI render', '3D illustration', 'over-smoothed skin', 'glass eyes', 'beauty filter', 'over-retouched', 'artificial bloom', 'uncanny valley', 'celebrity face', 'model face from advertisement']
+        format: 'unedited photograph, raw camera output',
+        camera_body: 'real cine camera (RED Komodo / ARRI Alexa / Sony FX6)',
+        lens: '35mm or 50mm prime, f/1.8 or f/2',
+        skin_texture_requirement: 'visible pores at 100% zoom, micro-hairs on face and arms, subtle skin oil sheen, mild redness on nose/ears/knuckles, NO smoothing, NO frequency separation, NO beauty filter',
+        fabric_requirement: 'visible weave texture, real wrinkles, slight wear and pilling where appropriate',
+        lighting_requirement: 'real bounce light with environmental color contamination — NOT studio-perfect',
+        imperfections_welcome: ['slight chromatic aberration on highlight edges', 'mild film grain', 'asymmetric facial features', 'irregular small catchlight in eyes'],
+        color_grading: 'slightly desaturated and naturally graded — NOT oversaturated AI look',
+        resolution: '8K detail but documentary aesthetic — NOT glamour, NOT magazine cover',
+        negative: ['plastic skin', 'CGI render', '3D illustration', 'over-smoothed skin', 'glass eyes', 'beauty filter', 'over-retouched', 'celebrity face', 'magazine cover model', 'AI-generated look', 'default AI face', 'perfect symmetry', 'frequency-separated skin', 'Instagram filter', 'render artifacts']
       }
     : {
         format: styleFeatures.mediumType || 'digital painting',

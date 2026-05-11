@@ -16,19 +16,26 @@ const ratioMap: Record<string, string> = {
 function buildShieldEnrichedPrompt(shieldPrompt: string): string {
   return shieldPrompt + `
 
-=== REPRODUCTION SPECS ===
-Clone the reference scene with cinematic forensic accuracy. Replace ONLY the person/model — preserve ALL clothing, colors, materials, fabric textures, logos, pose, hands, props, background, lighting, color temperature, framing, and camera angle EXACTLY as in the reference image.
-CINEMATIC QUALITY: Cine lens f/1.8, chromatic aberration. Skin pores and micro-hair visible. Fabric texture and material wear. Realistic highlights and shadows.
-PHOTOGRAPHY SPECS: Shot on cine camera. Natural skin texture with visible pores and micro-hair. Cinematic color grading. Detailed fabric folds. Realistic material highlights. Ultra-realistic, no beauty filter, no retouching.
+=== HYPERREALISM HARD REQUIREMENTS ===
+This MUST look like an UNEDITED real photograph from a real camera, NOT an AI generation:
+- RAW photo aesthetic: shot on real cine camera (RED Komodo, ARRI Alexa, or Sony FX6), 35mm or 50mm prime lens
+- Skin: visible pores at 100% zoom, micro-hairs on face and arms, real skin oil sheen, subtle redness on nose/ears/knuckles, mild blemishes, NO airbrushing, NO frequency separation, NO beauty filter
+- Fabric: visible weave, real wrinkles, fabric pilling where appropriate, light wear patterns
+- Lighting: real bounce light with subtle color contamination from environment, NOT studio-perfect
+- Photographic imperfections welcome: slight chromatic aberration on highlight edges, mild film grain, realistic motion micro-blur if applicable
+- Color: slightly desaturated and naturally graded — NOT the oversaturated AI-look
+- Anatomy: asymmetric features (real human faces are never perfectly symmetric), natural ear/nose proportions, real eye reflections (small + irregular catchlight)
 
 ANONYMITY HARD RULES — the generated subject MUST be an anonymous everyday adult:
 - NOT Cristiano Ronaldo, NOT Lionel Messi, NOT Neymar, NOT LeBron James, NOT any famous athlete
 - NOT Brad Pitt, NOT George Clooney, NOT Tom Cruise, NOT any Hollywood actor
 - NOT any celebrity, influencer, politician, or public figure from any country
-- NOT the "AI default handsome face" — avoid the generic AI-generated attractive model look
-- The face must be forgettable and unremarkable — like a stranger on the subway, NOT a magazine cover
-- If the reference shows a specific ethnic look, match it; but the person must still be anonymous
-AVOID: plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes, beauty filter, artificial bloom, distorted proportions, uncanny valley, celebrity likeness.`;`;
+- NOT the "AI default handsome face" — avoid generic AI-attractive symmetric features
+- Face must be forgettable and unremarkable — like a stranger on the subway, NOT a magazine cover
+- If reference shows specific ethnic look, match it; but anonymous
+
+NEGATIVE PROMPT (ABSOLUTELY AVOID):
+plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes, beauty filter, artificial bloom, distorted proportions, uncanny valley, celebrity likeness, AI-generated look, default AI face, perfect symmetry, glossy plastic skin, frequency-separated skin, magazine retouch, Instagram filter, render artifacts.`;
 }
 
 function buildEnrichedPrompt(fusionPrompt: string): string {
@@ -43,6 +50,60 @@ CRITICAL FACE LOCK: The face in the output must be identical to the face in the 
 Composition rules: Generate only what is explicitly described in the SCENE section. Do NOT add hands, arms, props, or background elements not mentioned. Keep the composition clean and anatomically correct. Avoid touching hands near the face unless explicitly stated.
 PHOTOGRAPHY SPECS: Shot on Sony A7R IV with 85mm f/1.4 G Master lens. Natural skin texture with visible pores and subtle imperfections. Cinematic color grading. Detailed fabric folds and material texture. High dynamic range. Shallow depth of field bokeh. Ultra-realistic, no beauty filter, no retouching.
 AVOID: plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes, beauty filter, artificial bloom, distorted proportions, uncanny valley.`;
+}
+
+async function tryNanoBananaPro(
+  prompt: string,
+  selfieBase64?: string,
+  selfieMime?: string,
+  styleBase64?: string,
+  styleMime?: string,
+): Promise<string> {
+  const key = process.env.NANO_BANANA_API_KEY!;
+  const url = `${BASE}/v1beta/models/gemini-3-pro-image-preview:generateContent?key=${key}`;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const proParts: any[] = [];
+
+  const isShieldMode = !selfieBase64 && !!styleBase64;
+
+  if (isShieldMode && styleBase64 && styleMime) {
+    proParts.push({ text: '[CENA ORIGINAL — clone esta imagem com precisão forense. Substitua SOMENTE o rosto e a identidade da pessoa por um modelo virtual fictício, genérico e não rastreável. NÃO altere absolutamente nada mais: roupa, cores, materiais, textura do tecido, logos, pose, mãos, fundo, iluminação, temperatura de cor, enquadramento, ângulo de câmera.]' });
+    proParts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
+  }
+
+  if (selfieBase64 && selfieMime) {
+    proParts.push({ text: '[IDENTITY REFERENCE — this is the person whose face must appear in the output. Preserve their face exactly.]' });
+    proParts.push({ inlineData: { data: selfieBase64, mimeType: selfieMime } });
+  }
+
+  if (selfieBase64 && styleBase64 && styleMime) {
+    proParts.push({ text: '[STYLE REFERENCE — copy the clothing, pose, environment, and lighting from this image. Do NOT copy the face.]' });
+    proParts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
+  }
+
+  proParts.push({ text: isShieldMode ? buildShieldEnrichedPrompt(prompt) : buildEnrichedPrompt(prompt) });
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: proParts }],
+      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    throw new Error(`NanoBananaPro ${res.status}: ${text.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const responseParts: Array<{ inlineData?: { data: string } }> =
+    data?.candidates?.[0]?.content?.parts ?? [];
+  const img = responseParts.find((p) => p.inlineData?.data);
+  if (!img?.inlineData?.data) throw new Error(`NanoBananaPro: sem imagem — ${JSON.stringify(responseParts).slice(0, 150)}`);
+  return img.inlineData.data;
 }
 
 async function tryNanoBanana2(
@@ -99,60 +160,6 @@ async function tryNanoBanana2(
   return img.inlineData.data;
 }
 
-async function tryNanoBananaPro(
-  prompt: string,
-  selfieBase64?: string,
-  selfieMime?: string,
-  styleBase64?: string,
-  styleMime?: string,
-): Promise<string> {
-  const key = process.env.NANO_BANANA_API_KEY!;
-  const url = `${BASE}/v1beta/models/nano-banana-pro-preview:generateContent?key=${key}`;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const proParts: any[] = [];
-
-  const isShieldMode = !selfieBase64 && !!styleBase64;
-
-  if (isShieldMode && styleBase64 && styleMime) {
-    proParts.push({ text: '[CENA ORIGINAL — clone esta imagem com precisão forense. Substitua SOMENTE o rosto e a identidade da pessoa por um modelo virtual fictício, genérico e não rastreável. NÃO altere absolutamente nada mais: roupa, cores, materiais, textura do tecido, logos, pose, mãos, fundo, iluminação, temperatura de cor, enquadramento, ângulo de câmera.]' });
-    proParts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
-  }
-
-  if (selfieBase64 && selfieMime) {
-    proParts.push({ text: '[IDENTITY REFERENCE — this is the person whose face must appear in the output. Preserve their face exactly.]' });
-    proParts.push({ inlineData: { data: selfieBase64, mimeType: selfieMime } });
-  }
-
-  if (selfieBase64 && styleBase64 && styleMime) {
-    proParts.push({ text: '[STYLE REFERENCE — copy the clothing, pose, environment, and lighting from this image. Do NOT copy the face.]' });
-    proParts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
-  }
-
-  proParts.push({ text: isShieldMode ? buildShieldEnrichedPrompt(prompt) : buildEnrichedPrompt(prompt) });
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: proParts }],
-      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(`NanoBananaPro ${res.status}: ${text.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  const responseParts: Array<{ inlineData?: { data: string } }> =
-    data?.candidates?.[0]?.content?.parts ?? [];
-  const img = responseParts.find((p) => p.inlineData?.data);
-  if (!img?.inlineData?.data) throw new Error(`NanoBananaPro: sem imagem — ${JSON.stringify(responseParts).slice(0, 150)}`);
-  return img.inlineData.data;
-}
-
 async function tryImagen4(prompt: string, aspectRatio: string): Promise<string> {
   const key = process.env.NANO_BANANA_API_KEY!;
   const url = `${BASE}/v1beta/models/imagen-4.0-generate-001:generateImages?key=${key}`;
@@ -177,40 +184,14 @@ async function tryImagen4(prompt: string, aspectRatio: string): Promise<string> 
   return b64;
 }
 
-async function tryGemini25FlashImage(prompt: string): Promise<string> {
-  const key = process.env.GEMINI_API_KEY!;
-  const url = `${BASE}/v1beta/models/gemini-2.5-flash-image:generateContent?key=${key}`;
-
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
-    }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(`Gemini25FlashImage ${res.status}: ${text.slice(0, 200)}`);
-  }
-
-  const data = await res.json();
-  const parts: Array<{ inlineData?: { data: string } }> =
-    data?.candidates?.[0]?.content?.parts ?? [];
-  const img = parts.find((p) => p.inlineData?.data);
-  if (!img?.inlineData?.data) throw new Error(`Gemini25FlashImage: sem imagem`);
-  return img.inlineData.data;
-}
-
 export async function generateImage(params: GenerateParams): Promise<string> {
   const { prompt, aspectRatio, imageBase64, mimeType, styleImageBase64, styleMimeType } = params;
   const errors: string[] = [];
 
   for (const [name, fn] of [
-    ['NanoBanana2',        () => tryNanoBanana2(prompt, imageBase64, mimeType, styleImageBase64, styleMimeType)],
-    ['NanoBananaPro',      () => tryNanoBananaPro(prompt, imageBase64, mimeType, styleImageBase64, styleMimeType)],
-    ['Gemini25FlashImage', () => tryGemini25FlashImage(prompt)],
+    ['NanoBananaPro', () => tryNanoBananaPro(prompt, imageBase64, mimeType, styleImageBase64, styleMimeType)],
+    ['NanoBanana2',   () => tryNanoBanana2(prompt, imageBase64, mimeType, styleImageBase64, styleMimeType)],
+    ['Imagen4',       () => tryImagen4(prompt, aspectRatio)],
   ] as [string, () => Promise<string>][]) {
     try {
       const result = await fn();
