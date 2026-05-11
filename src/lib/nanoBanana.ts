@@ -18,10 +18,17 @@ function buildShieldEnrichedPrompt(shieldPrompt: string): string {
 
 === REPRODUCTION SPECS ===
 Clone the reference scene with cinematic forensic accuracy. Replace ONLY the person/model — preserve ALL clothing, colors, materials, fabric textures, logos, pose, hands, props, background, lighting, color temperature, framing, and camera angle EXACTLY as in the reference image.
-FICTIONAL MODEL: Generate a new virtual commercial model, universally attractive, non-identifiable.
 CINEMATIC QUALITY: Cine lens f/1.8, chromatic aberration. Skin pores and micro-hair visible. Fabric texture and material wear. Realistic highlights and shadows.
 PHOTOGRAPHY SPECS: Shot on cine camera. Natural skin texture with visible pores and micro-hair. Cinematic color grading. Detailed fabric folds. Realistic material highlights. Ultra-realistic, no beauty filter, no retouching.
-AVOID: plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes, beauty filter, artificial bloom, distorted proportions, uncanny valley.`;
+
+ANONYMITY HARD RULES — the generated subject MUST be an anonymous everyday adult:
+- NOT Cristiano Ronaldo, NOT Lionel Messi, NOT Neymar, NOT LeBron James, NOT any famous athlete
+- NOT Brad Pitt, NOT George Clooney, NOT Tom Cruise, NOT any Hollywood actor
+- NOT any celebrity, influencer, politician, or public figure from any country
+- NOT the "AI default handsome face" — avoid the generic AI-generated attractive model look
+- The face must be forgettable and unremarkable — like a stranger on the subway, NOT a magazine cover
+- If the reference shows a specific ethnic look, match it; but the person must still be anonymous
+AVOID: plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes, beauty filter, artificial bloom, distorted proportions, uncanny valley, celebrity likeness.`;`;
 }
 
 function buildEnrichedPrompt(fusionPrompt: string): string {

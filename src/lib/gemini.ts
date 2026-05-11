@@ -12,7 +12,11 @@ export interface IdentityFeatures {
   approximateAge: string;
 }
 
+export type MediumType = 'photograph' | 'digital_painting' | 'oil_painting' | '3d_render' | 'illustration' | 'anime' | 'watercolor';
+
 export interface StyleFeatures {
+  mediumType: MediumType;
+  mediumDescription: string;
   referenceGender: 'male' | 'female' | 'unknown';
   outfitDescription: string;
   outfitItems: string[];
@@ -34,13 +38,14 @@ export interface StyleFeatures {
   poseHandsDetail: string;
 }
 
-
 type MimeType = 'image/jpeg' | 'image/png' | 'image/webp';
 
-/**
- * Analisa a selfie do usuário e extrai features de identidade.
- * Camada 1 do Identity Fusion Pipeline.
- */
+const AI_BRAND_BLOCKLIST = [
+  'nano banana', 'nanobeen', 'midjourney', 'dall-e', 'dalle', 'stable diffusion',
+  'flux', 'ideogram', 'leonardo', 'firefly', 'imagen', 'gemini', 'sora',
+  'runway', 'krea', 'recraft', 'adobe', 'bing create', 'fotor', 'canva ai',
+];
+
 export async function analyzeIdentity(imageBase64: string, mimeType: string): Promise<IdentityFeatures> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
@@ -75,67 +80,60 @@ export async function analyzeIdentity(imageBase64: string, mimeType: string): Pr
   }
 }
 
-/**
- * Analisa a imagem de referência do estilo e extrai features visuais.
- * Camada 1 do Identity Fusion Pipeline.
- * @param originalPrompt - Prompt original usado para criar a imagem (ex: Midjourney/SD). Melhora a precisão da análise.
- */
 export async function analyzeStyleImage(imageBase64: string, mimeType: string, originalPrompt?: string): Promise<StyleFeatures> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
   const additionalContext = originalPrompt
-    ? `\n\n=== ADDITIONAL CONTEXT (original creation prompt) ===\nThis image was generated using the following prompt. Use it as supplementary context to enhance your visual analysis — it may contain details about lighting setup, specific materials, mood, or artistic intent that complement your visual inspection:\n"${originalPrompt}"\nCross-reference this prompt with the image to resolve ambiguities and improve accuracy of your extraction.`
+    ? `\n\n=== ADDITIONAL CONTEXT (original creation prompt) ===\nThis image was generated using the following prompt. Cross-reference it with the image to resolve ambiguities and improve accuracy:\n"${originalPrompt}"\n`
     : '';
 
-  const prompt = `You are a Subject Swap Specialist and Visual DNA Extractor. Your mission: extract every visual fingerprint from this image so that a new subject can be placed into the EXACT same scene, pose, medium, and atmosphere. The subject's FACE will be replaced — everything else must be cloned with forensic precision. Return ONLY a valid JSON object (no markdown, no explanation).${additionalContext}
+  const prompt = `You are a Visual DNA Extractor. Extract every visual fingerprint from this image so that a new anonymous subject can be placed into the EXACT same scene, pose, medium, and atmosphere. Return ONLY a valid JSON object (no markdown, no explanation).${additionalContext}
 
-=== PRIORITY 1 — MEDIUM & ARTISTIC STYLE (most critical) ===
-Identify the EXACT artistic medium. This determines the entire rendering pipeline.
-- If it is a digital painting: say "intricate digital painting with visible painterly brushstrokes and rich color layering, NOT a 3D CGI render, NOT a photograph"
-- If it is an oil painting: say "oil painting on canvas, painterly impasto texture, NOT a photograph"
-- If it is a 3D CGI render: say "3D CGI render, subsurface scattering skin, ray-traced reflections, NOT a photograph"
-- If it is a photograph: say "photorealistic photograph, [lens/film characteristics]"
-- Other: anime illustration, watercolor, concept art, etc. — be equally explicit
-- ALWAYS add a "NOT [wrong medium]" clause to prevent the model from defaulting to its bias
+=== PRIORITY 1 — MEDIUM TYPE (most critical — controls entire rendering pipeline) ===
+Classify the EXACT medium. Choose ONE from: "photograph", "digital_painting", "oil_painting", "3d_render", "illustration", "anime", "watercolor"
+- Use "photograph" for any realistic camera-based image (photoshoot, editorial, studio, outdoor photo)
+- NEVER classify a photograph as digital_painting or vice versa
 
 === PRIORITY 2 — POSE PRECISION (including hands and arms) ===
-For bodyDynamics: describe weight distribution, axis tilt degrees, shoulder/hip offset, limb positioning, kinetic state. INCLUDE the state of arms — "arms raised above head" / "arms at sides" / "one arm extended upward".
-For poseHandsDetail: describe exact arm and hand positions explicitly. Example: "both arms raised overhead, right arm fully extended upward with fingers spread wide, left arm bent at elbow with forearm at 90° angle, palms open facing forward, head tilted slightly left"
-For pose: structural orientation ONLY, no clothing references. Example: "three-quarter turn, facing camera-left, chin slightly down"
+bodyDynamics: weight distribution, axis tilt, shoulder/hip offset, limb positions, kinetic state
+poseHandsDetail: exact arm/hand positions with angles. E.g.: "both hands clasped in lap, elbows on armrests, shoulders square"
+pose: structural orientation only, no clothing. E.g.: "frontal, eye-level, chin neutral"
 
-=== PRIORITY 3 — COSTUME & MAGICAL ELEMENTS ===
-For outfitDescription and textureDetails: include filigree patterns, glowing emblems, luminescent armor details.
-For magicalElements: describe ALL supernatural visual effects visible — glowing elements, particle effects, halos, light blooms, luminescent patterns, magical auras. Example: "glowing golden chest emblem emitting warm light; luminescent teal filigree armor patterns with inner glow; soft golden particle effects around raised hands; warm light bloom emanating from crown of head". Empty string if none present.
+=== PRIORITY 3 — COSTUME & SCENE ===
+outfitDescription: full outfit with materials, colors, details
+textureDetails: fabric weave, hardware finish (matte/gloss), leather grain, embroidery
+magicalElements: supernatural effects (glows, particles, auras) or empty string
 
-=== PRIORITY 4 — LIGHTING & COLOR PALETTE ===
-For lighting: single label only — e.g. "golden hour" / "mystical twilight" / "hard studio" / "neon" / "blue hour"
-For lightingExact: full fingerprint — color temperature in Kelvin, clock-position of key light, sun/source angle in degrees above horizon, key/fill/rim roles and relative intensities, shadow hardness, dominant chromatic palette, any lens artifacts. Example: "~3200K warm amber dominant, mystical teal secondary, key from above-right at 45° elevation, soft volumetric fill, no hard shadows, golden bloom at top of frame"
+=== PRIORITY 4 — LIGHTING ===
+lighting: single label (e.g. "soft studio", "golden hour", "neon", "blue hour")
+lightingExact: color temperature (Kelvin), key light position (clock angle + degrees elevation), key/fill/rim roles, shadow hardness, dominant palette, lens artifacts
 
 === PRIORITY 5 — SCENE CLONE ===
-For scenarioStyling: location scout note — architecture materials, prop inventory, surface textures, dominant color palette, time of day, atmospheric condition.
-For cameraAngle: BOTH framing distance (ECU/CU/MCU/MS/MLS/FS/EWS) AND vertical angle (bird's eye/high/slight plongée/eye-level/slight contre-plongée/contre-plongée/worm's eye) AND lens estimate. Example: "medium-shot, slight contre-plongée, 50mm prime"
-For textureDetails: enumerate every distinct material — fabric weave type, hardware finish (matte/gloss/brushed/hammered), leather grain, embroidery, embossing, armor plating style. Example: "hammered gold filigree armor plates with etched floral motifs; teal silk underlayer with subtle sheen; articulated pauldrons with gemstone inlays"
+scenarioStyling: location materials, props, surface textures, color palette, atmospheric condition
+cameraAngle: framing distance (ECU/CU/MCU/MS/MLS/FS/EWS) + vertical angle + lens estimate
 
 {
+  "mediumType": "photograph" or "digital_painting" or "oil_painting" or "3d_render" or "illustration" or "anime" or "watercolor",
+  "mediumDescription": "full medium description with NOT [wrong medium] clause, e.g. 'photorealistic editorial photograph, sharp focus, natural skin texture, NOT a CGI render, NOT a painting'",
   "referenceGender": "male" or "female" or "unknown",
-  "outfitDescription": "complete outfit in one precise sentence including all visible materials and any magical/luminescent elements",
-  "outfitItems": ["each item with its material, e.g. 'hammered gold filigree breastplate'"],
-  "colors": ["exact color names, e.g. 'deep teal', 'burnished gold', 'midnight black'"],
-  "footwear": "footwear with material and sole detail",
-  "accessories": ["each accessory with material and finish"],
-  "pose": "structural orientation only per PRIORITY 2 above",
+  "outfitDescription": "complete outfit in one precise sentence",
+  "outfitItems": ["each item with material"],
+  "colors": ["exact color names"],
+  "footwear": "footwear with material and detail",
+  "accessories": ["each accessory with material"],
+  "pose": "structural orientation only",
   "environment": "one sentence location summary",
-  "lighting": "single label per PRIORITY 4 above",
-  "lightingExact": "full cinematographic fingerprint per PRIORITY 4 above",
+  "lighting": "single label",
+  "lightingExact": "full cinematographic fingerprint",
   "aesthetic": "artistic style and editorial aesthetic",
-  "mood": "emotional tone and vibe",
-  "cameraAngle": "framing distance + vertical angle + lens estimate per PRIORITY 5 above",
-  "bodyDynamics": "structural body language including arm state per PRIORITY 2 above",
-  "scenarioStyling": "location scout note per PRIORITY 5 above",
-  "textureDetails": "material and texture inventory per PRIORITY 5 above",
-  "medium": "artistic medium per PRIORITY 1 above — always include NOT [wrong medium] clause",
-  "magicalElements": "all supernatural visual effects per PRIORITY 3, or empty string if none",
-  "poseHandsDetail": "exact arm and hand positions per PRIORITY 2 above"
+  "mood": "emotional tone",
+  "cameraAngle": "framing distance + vertical angle + lens estimate",
+  "bodyDynamics": "structural body language including arm state",
+  "scenarioStyling": "location scout note",
+  "textureDetails": "material and texture inventory",
+  "medium": "same as mediumDescription (legacy field)",
+  "magicalElements": "supernatural effects or empty string",
+  "poseHandsDetail": "exact arm and hand positions"
 }`;
 
   try {
@@ -144,9 +142,18 @@ For textureDetails: enumerate every distinct material — fabric weave type, har
       { inlineData: { data: imageBase64, mimeType: mimeType as MimeType } },
     ]);
     const text = result.response.text().trim().replace(/```json|```/g, '').trim();
-    return JSON.parse(text);
+    const parsed = JSON.parse(text);
+    // Ensure mediumType is a valid value; default to photograph for realistic images
+    if (!['photograph', 'digital_painting', 'oil_painting', '3d_render', 'illustration', 'anime', 'watercolor'].includes(parsed.mediumType)) {
+      parsed.mediumType = 'photograph';
+    }
+    // Sync legacy field
+    parsed.medium = parsed.mediumDescription || parsed.medium;
+    return parsed;
   } catch {
     return {
+      mediumType: 'photograph',
+      mediumDescription: 'photorealistic editorial photography, NOT a CGI render, NOT a painting',
       referenceGender: 'unknown',
       outfitDescription: 'Fashion style outfit.',
       outfitItems: [],
@@ -170,10 +177,6 @@ For textureDetails: enumerate every distinct material — fabric weave type, har
   }
 }
 
-/**
- * Gera um título comercial curto (máx 4 palavras, em português) para um estilo fashion/editorial.
- * Usado pelo Copyright Shield quando o admin não informa o nome manualmente.
- */
 export async function generateStyleTitle(imageBase64: string, mimeType: string): Promise<string> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
@@ -195,20 +198,16 @@ Reply ONLY with the title, nothing else.`;
 }
 
 export interface FidelityScore {
-  overall: number;         // 0–100
+  overall: number;
   pose: number;
   lighting: number;
   environment: number;
   costume: number;
   medium: number;
-  feedback: string;        // Em português — resumo do que divergiu
-  regenerate: boolean;     // true se overall < 70
+  feedback: string;
+  regenerate: boolean;
 }
 
-/**
- * Compara duas imagens (referência vs. gerada) e retorna um score de fidelidade visual.
- * Usado pelo Copyright Shield após gerar o preview para ajudar o admin a decidir se aprova.
- */
 export async function scoreFidelity(
   referenceBase64: string,
   referenceMime: string,
@@ -265,23 +264,39 @@ Return ONLY valid JSON (no markdown):
 
 export async function extractPromptFromImage(imageBase64: string, mimeType: string): Promise<string> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-  const prompt = `Look at this image carefully. If there is any AI generation prompt text visible in the image (usually at the bottom or overlaid as text), extract it completely and return ONLY that prompt text. Remove any Midjourney flags like --ar, --v7, --chaos, --stylize, --style raw. Remove any watermarks, website names, or creator handles. If no prompt text is visible in the image, return exactly: NONE`;
+
+  const prompt = `Inspect this image for embedded AI generation prompt text (usually a multi-sentence paragraph overlaid at the bottom or edges).
+
+Rules:
+- Extract ONLY the actual generation prompt text (sentences describing the scene/person/style)
+- EXCLUDE: AI tool brand names (nano banana, midjourney, dall-e, stable diffusion, flux, gemini, imagen, firefly, runway, etc.)
+- EXCLUDE: @username handles, website domains, URLs, social media handles
+- EXCLUDE: short single-word labels, watermarks positioned at corners/edges
+- EXCLUDE: any Midjourney parameter flags: --ar, --v, --chaos, --stylize, --style, --quality, --q
+- If no multi-sentence generation prompt is visible, return exactly the word: NONE
+
+Return ONLY the cleaned prompt text, or NONE.`;
+
   try {
     const result = await model.generateContent([
       prompt,
       { inlineData: { data: imageBase64, mimeType: mimeType as MimeType } },
     ]);
-    const text = result.response.text().trim();
-    if (!text || text === 'NONE' || text.length < 10) return '';
-    return text;
+    let text = result.response.text().trim();
+    if (!text || text === 'NONE' || text.length < 15) return '';
+
+    // Post-process: strip known AI brands and handles
+    for (const brand of AI_BRAND_BLOCKLIST) {
+      text = text.replace(new RegExp(`\\b${brand}\\b`, 'gi'), '');
+    }
+    text = text.replace(/@\w+/g, '').replace(/https?:\/\/\S+/g, '').replace(/\s{2,}/g, ' ').trim();
+
+    return text.length >= 15 ? text : '';
   } catch {
     return '';
   }
 }
 
-/**
- * Descrição simples da foto (legacy — usado como fallback).
- */
 export async function analyzePhoto(imageBase64: string, mimeType: string): Promise<string> {
   const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 

@@ -15,59 +15,89 @@ function cleanMJFlags(prompt: string): string {
 function stripPersonDescriptors(prompt: string): string {
   return prompt
     .replace(/\b\d+\s+years?\s+old\b/gi, '')
-    .replace(/\b(male|female|man|woman|boy|girl|person|writer|photographer|model|athlete|CEO|executive|journalist|director|actor|actress)\b/gi, '[FICTIONAL MODEL]')
+    .replace(/\b(male|female|man|woman|boy|girl|person|writer|photographer|athlete|CEO|executive|journalist|director|actor|actress)\b/gi, 'an anonymous adult')
     .replace(/\b(European|Asian|African|Latino|Hispanic|American|Brazilian|Italian|French|German|British|Spanish|Russian|Japanese)\b/gi, '')
     .replace(/\bwith\s+(gray|grey|blonde|brunette|dark|light|curly|straight|short|long)\s+hair\b/gi, '')
     .replace(/\bwith\s+(short|long|full|thick|trimmed|neat)\s+beard\b/gi, '')
     .replace(/\b(thoughtful|pensive|contemplative|melancholic|cheerful|stern|stoic)\b/gi, '')
-    .replace(/(\[FICTIONAL MODEL\]\s*){2,}/g, '[FICTIONAL MODEL] ')
+    .replace(/(an anonymous adult\s*){2,}/g, 'an anonymous adult ')
     .replace(/\s{2,}/g, ' ')
     .trim();
 }
 
 export function buildShieldPrompt(styleFeatures: StyleFeatures, originalPrompt?: string): string {
-  const isPainting = styleFeatures.medium && (
-    styleFeatures.medium.includes('paint') ||
-    styleFeatures.medium.includes('illustr') ||
-    styleFeatures.medium.includes('digital art') ||
-    styleFeatures.medium.includes('concept art') ||
-    styleFeatures.medium.includes('anime') ||
-    styleFeatures.medium.includes('watercolor')
-  );
+  const isPhoto = styleFeatures.mediumType === 'photograph' ||
+    (!styleFeatures.mediumType && !(
+      styleFeatures.medium?.includes('paint') ||
+      styleFeatures.medium?.includes('illustr') ||
+      styleFeatures.medium?.includes('digital art') ||
+      styleFeatures.medium?.includes('concept art') ||
+      styleFeatures.medium?.includes('anime') ||
+      styleFeatures.medium?.includes('watercolor')
+    ));
 
-  const qualityBlock = isPainting
-    ? `[Qualidade] Resolução de galeria. Pinceladas e texturas de pintura preservadas. 8K. Riqueza cromática fiel ao original. Negativo: CGI, render 3D, pele plástica, super-retocado, borrado.`
-    : `[Qualidade] Fotorrealismo cinemático — lente cine f/1.8, aberração cromática, poros na pele visíveis, micro-pelos, textura de tecido e desgaste realista de materiais, HDR, sem filtro de beleza. Negativo: pele plástica, CGI, pele super-lisa, filtro de beleza, olhos de vidro, render 3D genérico.`;
+  const qualitySpec = isPhoto
+    ? {
+        format: 'cinematic photograph',
+        camera: 'cine lens f/1.8, shallow depth of field, chromatic aberration',
+        skin: 'visible pores, micro-hair, natural imperfections — zero beauty filter',
+        fabric: 'detailed weave texture, realistic folds and material wear',
+        color: 'cinematic color grading matching reference exactly',
+        resolution: '8K ultra-detail',
+        negative: ['plastic skin', 'CGI render', '3D illustration', 'over-smoothed skin', 'glass eyes', 'beauty filter', 'over-retouched', 'artificial bloom', 'uncanny valley', 'celebrity face', 'model face from advertisement']
+      }
+    : {
+        format: styleFeatures.mediumType || 'digital painting',
+        preserve: 'all painterly brushstrokes, color layering, medium texture from the reference',
+        resolution: '8K gallery quality',
+        negative: ['CGI render', 'photorealistic substitution', 'plastic skin', 'over-retouched', 'blurry']
+      };
 
-  if (originalPrompt) {
-    const cleanedScene = stripPersonDescriptors(cleanMJFlags(originalPrompt));
-    return [
-      `[MISSÃO — CLONE CINEMÁTICO] A imagem de referência está visível acima. Clone-a com precisão cinemática. Substitua SOMENTE a pessoa por um modelo virtual fictício, comercialmente atraente e não rastreável. NADA mais muda: roupa, cores, materiais, texturas, logos, pose, mãos, objetos, fundo, iluminação, temperatura de cor, enquadramento, ângulo de câmera.`,
-      `[Protagonista] Modelo virtual fictício, feições universais e comercialmente atraentes, não rastreável.`,
-      `[Cena — baseada no prompt original da criação]\n${cleanedScene}`,
-      `[Iluminação — CRÍTICO] ${styleFeatures.lightingExact || styleFeatures.lighting || 'iluminação de estúdio cinemática'}. Preservar temperatura de cor, direção, intensidade e padrão de sombras exatamente como na referência.`,
-      qualityBlock,
-      `[Mood] ${styleFeatures.mood || 'editorial, confiante'}.`,
-    ].filter(Boolean).join('\n');
-  }
+  const cleanedScene = originalPrompt ? stripPersonDescriptors(cleanMJFlags(originalPrompt)) : '';
+
+  const spec = {
+    task: 'clone_scene_replace_subject',
+    instruction: 'The reference image is visible above. Reproduce it with cinematic forensic fidelity. The ONLY change: replace the human subject with an anonymous, unremarkable everyday adult. Every other element — composition, clothing, colors, pose, hands, props, background, lighting, camera angle, framing — must be IDENTICAL to the reference.',
+    preserve_from_reference: {
+      composition: 'exact — do not reframe, do not crop differently',
+      pose: styleFeatures.bodyDynamics || 'exact as shown in reference',
+      pose_hands_detail: styleFeatures.poseHandsDetail || 'preserve exactly as in reference',
+      clothing: styleFeatures.outfitDescription,
+      colors: styleFeatures.colors,
+      footwear: styleFeatures.footwear,
+      accessories: styleFeatures.accessories,
+      background: styleFeatures.scenarioStyling || styleFeatures.environment,
+      lighting: styleFeatures.lightingExact || styleFeatures.lighting,
+      camera: styleFeatures.cameraAngle || 'eye-level, 50mm prime',
+      framing: 'vertical 9:16 editorial mobile-stories format',
+      ...(styleFeatures.textureDetails ? { textures: styleFeatures.textureDetails } : {}),
+      ...(styleFeatures.magicalElements ? { atmospheric_effects: styleFeatures.magicalElements } : {}),
+    },
+    subject_replacement: {
+      description: 'an ordinary anonymous adult — the kind of unremarkable person you would see on public transit',
+      hard_constraints: [
+        'NOT a celebrity of any kind',
+        'NOT a famous athlete (no Cristiano Ronaldo, no Messi, no LeBron, no Neymar)',
+        'NOT a famous actor or actress',
+        'NOT a politician or world leader',
+        'NOT a social media influencer',
+        'NOT a recognizable person from any media',
+        'face must be forgettable and generic — not handsome in a model/celebrity way',
+        'should look like a stock photo of a random person, not a cover model',
+        'preserve approximate age range and ethnicity of the original if it fits the scene'
+      ],
+      scene_context: cleanedScene || styleFeatures.outfitDescription,
+    },
+    ...(cleanedScene ? { scene_source_prompt: cleanedScene } : {}),
+    medium: styleFeatures.mediumDescription || styleFeatures.medium,
+    quality: qualitySpec,
+    mood: styleFeatures.mood || 'editorial, composed',
+  };
 
   return [
-    `[MISSÃO — CLONE COM TROCA DE ROSTO] A imagem de referência está visível acima. Clone-a com precisão forense: mesma pose, mesmo enquadramento, mesmo ângulo de câmera, mesmo fundo, mesma iluminação (temperatura de cor, direção e intensidade idênticas), mesmo vestuário com todas as cores e texturas exatas. Substitua SOMENTE o rosto e identidade da pessoa por um modelo virtual fictício, comercialmente atraente e não rastreável. NADA mais muda.`,
-    `[Protagonista] Modelo virtual fictício, feições universais e comerciais, olhar cativante, identidade visual única e não rastreável.`,
-    `[Meio Artístico — CRÍTICO] ${styleFeatures.medium || 'photorealistic editorial photography'}. Replicar exatamente este meio artístico. NÃO substituir por render 3D fotorrealista se o original for uma pintura. NÃO substituir por fotografia se o original for uma pintura ou ilustração.`,
-    `[Câmera] ${styleFeatures.cameraAngle || 'eye-level, 50mm prime'}. Preservar EXATAMENTE: distância de framing, ângulo vertical (se eye-level na referência → eye-level no output, NÃO contre-plongée), rotação e crop. NÃO reinterpretar o ângulo.`,
-    `[Pose e Mãos] ${styleFeatures.bodyDynamics || 'natural, relaxed confidence'}${styleFeatures.poseHandsDetail ? `. ${styleFeatures.poseHandsDetail}` : ''}. NÃO reinterpretar a pose — clonar estruturalmente.`,
-    `[Cenário] ${styleFeatures.scenarioStyling || styleFeatures.environment || 'studio profissional, backdrop neutro'}.`,
-    `[Iluminação — CRÍTICO] ${styleFeatures.lightingExact || styleFeatures.lighting || 'soft studio lighting'}. Preservar exatamente: temperatura de cor, direção, intensidade e padrão de sombras. NÃO substituir por iluminação de estúdio genérica. NÃO neutralizar tons quentes ou frios. NÃO aumentar saturação de cores. NÃO adicionar halos ou blooms extras. Manter relação key/fill/rim exatamente como na referência.`,
-    `[Vestuário] ${styleFeatures.outfitDescription}. Cores: ${styleFeatures.colors.join(', ') || 'neutro'}.`,
-    styleFeatures.textureDetails
-      ? `[Texturas e Materiais] ${styleFeatures.textureDetails}. Preservar todos os detalhes de tecido, acabamentos de hardware e superfícies.`
-      : '',
-    styleFeatures.magicalElements
-      ? `[Elementos Mágicos/Atmosféricos] ${styleFeatures.magicalElements}. PRESERVAR todos os efeitos de brilho, luminescência e magia exatamente como descrito.`
-      : '',
-    `[Framing] Proporção vertical 9:16 exata, enquadramento editorial otimizado para formato stories mobile.`,
-    qualityBlock,
-    `[Mood] ${styleFeatures.mood || 'editorial, confident'}.`,
-  ].filter(Boolean).join('\n');
+    '[MISSION] Clone the reference image with forensic cinematic precision. Keep EVERYTHING except the person\'s identity. The new subject must be an anonymous everyday adult — NEVER a celebrity, NEVER a recognizable public figure.',
+    '',
+    'GENERATION SPEC:',
+    JSON.stringify(spec, null, 2),
+  ].join('\n');
 }
