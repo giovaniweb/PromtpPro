@@ -13,8 +13,17 @@ const ratioMap: Record<string, string> = {
   '1:1': '1:1', '4:5': '4:5', '2:3': '3:4', '4:7': '3:4', '9:16': '9:16', '16:9': '16:9',
 };
 
-function buildShieldEnrichedPrompt(shieldPrompt: string): string {
+function buildShieldEnrichedPrompt(shieldPrompt: string, aspectRatio: string): string {
+  const ratioLabel = aspectRatio === '9:16' ? 'vertical portrait 9:16 (taller than wide, mobile stories format)'
+    : aspectRatio === '16:9' ? 'horizontal landscape 16:9'
+    : aspectRatio === '4:5' ? 'vertical portrait 4:5'
+    : aspectRatio === '1:1' ? 'square 1:1'
+    : `${aspectRatio} aspect ratio`;
+
   return shieldPrompt + `
+
+=== OUTPUT FORMAT ===
+OUTPUT MUST BE ${ratioLabel.toUpperCase()}. The final image dimensions must follow this aspect ratio strictly. Do NOT default to landscape if vertical was requested.
 
 === HYPERREALISM HARD REQUIREMENTS ===
 This MUST look like an UNEDITED real photograph from a real camera, NOT an AI generation:
@@ -43,18 +52,28 @@ plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes, beaut
 - WRINKLES & SKIN MARKS: If visible in the reference (forehead lines, crow's feet, beard texture, sun spots), preserve them exactly. These are NOT imperfections to fix — they are identity-defining features of the reference style.`;
 }
 
-function buildEnrichedPrompt(fusionPrompt: string): string {
+function buildEnrichedPrompt(fusionPrompt: string, aspectRatio: string): string {
+  const ratioLabel = aspectRatio === '9:16' ? 'vertical portrait 9:16 (taller than wide, mobile stories format)'
+    : aspectRatio === '16:9' ? 'horizontal landscape 16:9'
+    : aspectRatio === '4:5' ? 'vertical portrait 4:5'
+    : aspectRatio === '1:1' ? 'square 1:1'
+    : `${aspectRatio} aspect ratio`;
+
   return fusionPrompt + `
 
+=== OUTPUT FORMAT ===
+OUTPUT MUST BE ${ratioLabel.toUpperCase()}. The final image dimensions must follow this aspect ratio strictly. Do NOT default to landscape if vertical was requested. Do NOT crop or pad — generate natively at this aspect ratio.
+
 === RENDERING PARAMETERS ===
-Identity preservation: 1.0 — ABSOLUTE: The face, skin tone, hair and facial structure from the IDENTITY REFERENCE image must appear in the output exactly as shown. Do not alter, blend, or average facial features with any other person.
-Style transfer strength: 0.65 — Use clothing colors, environment and pose from the STYLE REFERENCE image, but freely adapt body proportions, shoulder width, neck, and torso to match the target gender anatomy.
-Gender anatomy adaptation: Apply correct skeletal proportions for the stated target gender (broader shoulders, wider neck for male; narrower shoulders for female). Do NOT copy the silhouette outline of the style reference person.
-Composite rule: Place the identity face onto a newly generated body that matches the target gender physique wearing the described clothing in the described environment.
-CRITICAL FACE LOCK: The face in the output must be identical to the face in the identity_reference_image. Do NOT use, reference, blend, or interpolate the face of the person in the style reference image. If in doubt, discard the style reference face entirely.
-Composition rules: Generate only what is explicitly described in the SCENE section. Do NOT add hands, arms, props, or background elements not mentioned. Keep the composition clean and anatomically correct. Avoid touching hands near the face unless explicitly stated.
+Identity preservation: 1.0 — ABSOLUTE PRIORITY: The face, skin tone, hair texture, hair color, beard, eye shape, nose, mouth, jawline, cheekbones and ALL facial structure must come from the LAST image shown (the IDENTITY REFERENCE), not from any previous image. The output face must be a 1:1 match of the IDENTITY REFERENCE — same age, same weight class, same expression style, same hair shape.
+Style transfer strength: 0.35 — ONLY use the STYLE REFERENCE for: clothing items and colors, environment/background, lighting setup, camera angle, pose. DO NOT copy: face, hair style, skin tone, facial expression, body weight, age from the style reference.
+Gender anatomy adaptation: Apply correct skeletal proportions for the stated target gender. Do NOT copy the silhouette outline of the style reference person.
+Composite rule: Place the IDENTITY face onto a newly generated body that wears the STYLE clothing in the STYLE environment with the STYLE lighting. The body adapts to the IDENTITY's apparent build (weight, age) — do NOT slim down or idealize.
+CRITICAL FACE LOCK: The face in the output must be identical to the face in the IDENTITY REFERENCE (last image). If the IDENTITY shows a man with round cheeks and a wide smile, the output must show the same man with round cheeks (the expression may be neutral, but bone structure stays). If the IDENTITY shows wavy hair, the output has wavy hair — NOT curly, NOT straight. DO NOT use, reference, blend, or interpolate the face of the person in the STYLE REFERENCE. If in doubt about a feature, copy it from the IDENTITY image, not the STYLE.
+ANTI-IDEALIZATION: Do NOT make the subject more attractive, slimmer, more angular, or more "model-like" than the IDENTITY shows. Keep their exact apparent weight, age, and facial fullness.
+Composition rules: Generate only what is explicitly described in the SCENE section. Do NOT add hands, arms, props, or background elements not mentioned. Keep the composition clean and anatomically correct.
 PHOTOGRAPHY SPECS: Shot on Sony A7R IV with 85mm f/1.4 G Master lens. Natural skin texture with visible pores and subtle imperfections. Cinematic color grading. Detailed fabric folds and material texture. High dynamic range. Shallow depth of field bokeh. Ultra-realistic, no beauty filter, no retouching.
-AVOID: plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes, beauty filter, artificial bloom, distorted proportions, uncanny valley.`;
+AVOID: plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes, beauty filter, artificial bloom, distorted proportions, uncanny valley, identity loss, face averaging, idealized features, slimmer face than reference, wrong aspect ratio, landscape when vertical requested.`;
 }
 
 async function tryNanoBananaPro(
@@ -78,17 +97,18 @@ async function tryNanoBananaPro(
     proParts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
   }
 
-  if (selfieBase64 && selfieMime) {
-    proParts.push({ text: '[IDENTITY REFERENCE — this is the person whose face must appear in the output. Preserve their face exactly.]' });
-    proParts.push({ inlineData: { data: selfieBase64, mimeType: selfieMime } });
-  }
-
+  // Fusion mode: STYLE first (further from prompt = less attention weight), IDENTITY last (closest to prompt = max attention)
   if (selfieBase64 && styleBase64 && styleMime) {
-    proParts.push({ text: '[STYLE REFERENCE — copy the clothing, pose, environment, and lighting from this image. Do NOT copy the face.]' });
+    proParts.push({ text: '[STYLE REFERENCE — copy ONLY the clothing, pose, environment, and lighting from this image. The face/identity/body of this person is IRRELEVANT and must be IGNORED.]' });
     proParts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
   }
 
-  proParts.push({ text: isShieldMode ? buildShieldEnrichedPrompt(prompt) : buildEnrichedPrompt(prompt) });
+  if (selfieBase64 && selfieMime) {
+    proParts.push({ text: '[IDENTITY REFERENCE — THIS is the person whose face, hair, body shape, age, and apparent weight must appear in the output. Preserve their face and build EXACTLY as shown. This image overrides any face seen in the STYLE REFERENCE above.]' });
+    proParts.push({ inlineData: { data: selfieBase64, mimeType: selfieMime } });
+  }
+
+  proParts.push({ text: isShieldMode ? buildShieldEnrichedPrompt(prompt, aspectRatio) : buildEnrichedPrompt(prompt, aspectRatio) });
 
   const res = await fetch(url, {
     method: 'POST',
@@ -136,17 +156,18 @@ async function tryNanoBanana2(
     parts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
   }
 
-  if (selfieBase64 && selfieMime) {
-    parts.push({ text: '[IDENTITY REFERENCE — this is the person whose face must appear in the output. Preserve their face exactly.]' });
-    parts.push({ inlineData: { data: selfieBase64, mimeType: selfieMime } });
-  }
-
+  // Fusion mode: STYLE first, IDENTITY last (closest to prompt = max attention)
   if (selfieBase64 && styleBase64 && styleMime) {
-    parts.push({ text: '[STYLE REFERENCE — copy the clothing, pose, environment, and lighting from this image. Do NOT copy the face.]' });
+    parts.push({ text: '[STYLE REFERENCE — copy ONLY the clothing, pose, environment, and lighting from this image. The face/identity/body of this person is IRRELEVANT and must be IGNORED.]' });
     parts.push({ inlineData: { data: styleBase64, mimeType: styleMime } });
   }
 
-  parts.push({ text: isShieldMode ? buildShieldEnrichedPrompt(prompt) : buildEnrichedPrompt(prompt) });
+  if (selfieBase64 && selfieMime) {
+    parts.push({ text: '[IDENTITY REFERENCE — THIS is the person whose face, hair, body shape, age, and apparent weight must appear in the output. Preserve their face and build EXACTLY as shown. This image overrides any face seen in the STYLE REFERENCE above.]' });
+    parts.push({ inlineData: { data: selfieBase64, mimeType: selfieMime } });
+  }
+
+  parts.push({ text: isShieldMode ? buildShieldEnrichedPrompt(prompt, aspectRatio) : buildEnrichedPrompt(prompt, aspectRatio) });
 
   const res = await fetch(url, {
     method: 'POST',
