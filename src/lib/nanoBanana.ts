@@ -188,11 +188,16 @@ export async function generateImage(params: GenerateParams): Promise<string> {
   const { prompt, aspectRatio, imageBase64, mimeType, styleImageBase64, styleMimeType } = params;
   const errors: string[] = [];
 
-  for (const [name, fn] of [
+  const isShieldMode = !imageBase64 && !!styleImageBase64;
+
+  const models: [string, () => Promise<string>][] = [
     ['NanoBananaPro', () => tryNanoBananaPro(prompt, imageBase64, mimeType, styleImageBase64, styleMimeType)],
     ['NanoBanana2',   () => tryNanoBanana2(prompt, imageBase64, mimeType, styleImageBase64, styleMimeType)],
-    ['Imagen4',       () => tryImagen4(prompt, aspectRatio)],
-  ] as [string, () => Promise<string>][]) {
+    // Imagen4 has no image input — skip in shield mode where visual reference is required
+    ...(!isShieldMode ? [['Imagen4', () => tryImagen4(prompt, aspectRatio)] as [string, () => Promise<string>]] : []),
+  ];
+
+  for (const [name, fn] of models) {
     try {
       const result = await fn();
       console.log(`[nanoBanana] Gerado com: ${name}`);

@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
       mimeType: 'image/jpeg',
       prompt: shieldPrompt,
       aspectRatio: '9:16',
+      styleImageBase64: referenceBase64,
+      styleMimeType: referenceMime,
     });
 
     // Score fidelity when reference image is provided
