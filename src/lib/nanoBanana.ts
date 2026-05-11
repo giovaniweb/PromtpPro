@@ -35,7 +35,12 @@ ANONYMITY HARD RULES — the generated subject MUST be an anonymous everyday adu
 - If reference shows specific ethnic look, match it; but anonymous
 
 NEGATIVE PROMPT (ABSOLUTELY AVOID):
-plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes, beauty filter, artificial bloom, distorted proportions, uncanny valley, celebrity likeness, AI-generated look, default AI face, perfect symmetry, glossy plastic skin, frequency-separated skin, magazine retouch, Instagram filter, render artifacts.`;
+plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes, beauty filter, artificial bloom, distorted proportions, uncanny valley, celebrity likeness, AI-generated look, default AI face, perfect symmetry, glossy plastic skin, frequency-separated skin, magazine retouch, Instagram filter, render artifacts.
+
+=== AGE & LIGHTING FIDELITY ===
+- AGE: The replacement subject must be the same apparent age as the original (±2 years). If the reference shows a 55-year-old with weathered skin, generate a 55-year-old with weathered skin. NEVER make the subject younger or smoother.
+- LIGHTING: Reproduce the EXACT lighting of the reference — same key light angle, same shadow depth, same contrast ratio. If the reference has dramatic studio chiaroscuro, KEEP IT DRAMATIC. Do not add fill light. Do not soften shadows.
+- WRINKLES & SKIN MARKS: If visible in the reference (forehead lines, crow's feet, beard texture, sun spots), preserve them exactly. These are NOT imperfections to fix — they are identity-defining features of the reference style.`;
 }
 
 function buildEnrichedPrompt(fusionPrompt: string): string {
@@ -54,6 +59,7 @@ AVOID: plastic skin, CGI render, 3D illustration, over-smoothed skin, glass eyes
 
 async function tryNanoBananaPro(
   prompt: string,
+  aspectRatio: string,
   selfieBase64?: string,
   selfieMime?: string,
   styleBase64?: string,
@@ -89,7 +95,10 @@ async function tryNanoBananaPro(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: proParts }],
-      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+      generationConfig: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        imageConfig: { aspectRatio: ratioMap[aspectRatio] ?? '1:1' },
+      },
     }),
   });
 
@@ -108,6 +117,7 @@ async function tryNanoBananaPro(
 
 async function tryNanoBanana2(
   prompt: string,
+  aspectRatio: string,
   selfieBase64?: string,
   selfieMime?: string,
   styleBase64?: string,
@@ -143,7 +153,10 @@ async function tryNanoBanana2(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts }],
-      generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
+      generationConfig: {
+        responseModalities: ['TEXT', 'IMAGE'],
+        imageConfig: { aspectRatio: ratioMap[aspectRatio] ?? '1:1' },
+      },
     }),
   });
 
@@ -191,8 +204,8 @@ export async function generateImage(params: GenerateParams): Promise<string> {
   const isShieldMode = !imageBase64 && !!styleImageBase64;
 
   const models: [string, () => Promise<string>][] = [
-    ['NanoBananaPro', () => tryNanoBananaPro(prompt, imageBase64, mimeType, styleImageBase64, styleMimeType)],
-    ['NanoBanana2',   () => tryNanoBanana2(prompt, imageBase64, mimeType, styleImageBase64, styleMimeType)],
+    ['NanoBananaPro', () => tryNanoBananaPro(prompt, aspectRatio, imageBase64, mimeType, styleImageBase64, styleMimeType)],
+    ['NanoBanana2',   () => tryNanoBanana2(prompt, aspectRatio, imageBase64, mimeType, styleImageBase64, styleMimeType)],
     // Imagen4 has no image input — skip in shield mode where visual reference is required
     ...(!isShieldMode ? [['Imagen4', () => tryImagen4(prompt, aspectRatio)] as [string, () => Promise<string>]] : []),
   ];

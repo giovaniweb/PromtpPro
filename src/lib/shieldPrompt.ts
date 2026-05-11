@@ -41,13 +41,13 @@ export function buildShieldPrompt(styleFeatures: StyleFeatures, originalPrompt?:
         format: 'unedited photograph, raw camera output',
         camera_body: 'real cine camera (RED Komodo / ARRI Alexa / Sony FX6)',
         lens: '35mm or 50mm prime, f/1.8 or f/2',
-        skin_texture_requirement: 'visible pores at 100% zoom, micro-hairs on face and arms, subtle skin oil sheen, mild redness on nose/ears/knuckles, NO smoothing, NO frequency separation, NO beauty filter',
+        skin_texture_requirement: 'match the EXACT visible age of the reference subject — if the reference shows deep forehead wrinkles, crow\'s feet, nasolabial folds, beard texture, or skin sun damage, preserve them at the same intensity. Visible pores at 100% zoom, micro-hairs, skin oil sheen, mild redness on nose/ears/knuckles. NO smoothing, NO frequency separation, NO beauty filter, NO age reduction. The replacement subject must look the same age (±2 years) as the original.',
         fabric_requirement: 'visible weave texture, real wrinkles, slight wear and pilling where appropriate',
-        lighting_requirement: 'real bounce light with environmental color contamination — NOT studio-perfect',
+        lighting_requirement: 'reproduce the EXACT lighting setup of the reference — same key light direction, same shadow depth, same contrast ratio. If the reference has dramatic Rembrandt/chiaroscuro studio lighting, preserve it; if it has soft natural light, preserve that. NEVER soften dramatic shadows. NEVER add fill light not present in the reference.',
         imperfections_welcome: ['slight chromatic aberration on highlight edges', 'mild film grain', 'asymmetric facial features', 'irregular small catchlight in eyes'],
-        color_grading: 'slightly desaturated and naturally graded — NOT oversaturated AI look',
-        resolution: '8K detail but documentary aesthetic — NOT glamour, NOT magazine cover',
-        negative: ['plastic skin', 'CGI render', '3D illustration', 'over-smoothed skin', 'glass eyes', 'beauty filter', 'over-retouched', 'celebrity face', 'magazine cover model', 'AI-generated look', 'default AI face', 'perfect symmetry', 'frequency-separated skin', 'Instagram filter', 'render artifacts']
+        color_grading: 'match reference grading exactly — preserve original saturation and contrast level',
+        resolution: '8K detail, documentary aesthetic when reference is documentary, editorial-cinematic when reference is editorial-cinematic',
+        negative: ['plastic skin', 'CGI render', '3D illustration', 'over-smoothed skin', 'glass eyes', 'beauty filter', 'over-retouched', 'celebrity face', 'magazine cover model', 'AI-generated look', 'default AI face', 'perfect symmetry', 'frequency-separated skin', 'Instagram filter', 'render artifacts', 'age reduction', 'softened shadows', 'added fill light']
       }
     : {
         format: styleFeatures.mediumType || 'digital painting',
@@ -71,6 +71,7 @@ export function buildShieldPrompt(styleFeatures: StyleFeatures, originalPrompt?:
       accessories: styleFeatures.accessories,
       background: styleFeatures.scenarioStyling || styleFeatures.environment,
       lighting: styleFeatures.lightingExact || styleFeatures.lighting,
+      lighting_match_reference: 'mandatory — 1:1 fidelity to reference contrast and shadow depth, do not soften',
       camera: styleFeatures.cameraAngle || 'eye-level, 50mm prime',
       framing: 'vertical 9:16 editorial mobile-stories format',
       ...(styleFeatures.textureDetails ? { textures: styleFeatures.textureDetails } : {}),
@@ -78,6 +79,7 @@ export function buildShieldPrompt(styleFeatures: StyleFeatures, originalPrompt?:
     },
     subject_replacement: {
       description: 'an ordinary anonymous adult — the kind of unremarkable person you would see on public transit',
+      age_match: 'preserve exact apparent age and skin weathering of reference subject (±2 years)',
       hard_constraints: [
         'NOT a celebrity of any kind',
         'NOT a famous athlete (no Cristiano Ronaldo, no Messi, no LeBron, no Neymar)',
